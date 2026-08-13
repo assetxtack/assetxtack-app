@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LogOut, Plus } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 function XMark({ size = 22 }: { size?: number }) {
@@ -33,7 +33,7 @@ function Wordmark({ size = 20 }: { size?: number }) {
   );
 }
 
-// PUBLIC HOMEPAGE LINKS (Removed 'Browse Listings', added structured section links)
+// PUBLIC HOMEPAGE LINKS
 const PUBLIC_NAV_LINKS = [
   { label: "Overview", href: "/#overview", isAnchor: true, sectionId: "overview" },
   { label: "How It Works", href: "/#how", isAnchor: true, sectionId: "how" },
@@ -41,41 +41,15 @@ const PUBLIC_NAV_LINKS = [
   { label: "FAQ", href: "/#faq", isAnchor: true, sectionId: "faq" },
 ];
 
-// AUTHENTICATED LINKS
-const AUTH_NAV_LINKS = [
-  { label: "Browse Marketplace", href: "/listings" },
-  { label: "My Purchases", href: "/orders/purchases" },
-  { label: "My Sales", href: "/orders/sales" },
-];
-
-function UserAvatar({ user }: { user: any }) {
-  const [imgError, setImgError] = useState(false);
-  const initial = (user?.email || "?").charAt(0).toUpperCase();
-
-  return (
-    <div
-      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden border border-[#242938]"
-      style={{ background: "#FFB020", color: "#0B0E14" }}
-    >
-      {user?.photoURL && !imgError ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={user.photoURL}
-          alt="Account profile"
-          className="w-full h-full object-cover"
-          onError={() => setImgError(true)}
-        />
-      ) : (
-        <span>{initial}</span>
-      )}
-    </div>
-  );
-}
-
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { user, loading, signOut } = useAuth();
+  const { user, loading } = useAuth();
   const pathname = usePathname();
+
+  // 1. Hide Navbar completely if the user is authenticated
+  if (!loading && user) {
+    return null;
+  }
 
   const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, sectionId?: string) => {
     if (!sectionId) return;
@@ -91,21 +65,19 @@ export default function Navbar() {
     }
   };
 
-  const navLinks = user ? AUTH_NAV_LINKS : PUBLIC_NAV_LINKS;
-
   return (
     <header className="sticky top-0 z-50 bg-[#0B0E14]/90 backdrop-blur-md border-b border-[#242938] transition-all">
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-5 py-3.5">
-        <Wordmark size={20} />
+      <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
+        <Wordmark size={22} />
 
-        {/* Navigation Links */}
-        <nav className="hidden md:flex items-center gap-2 text-sm">
-          {navLinks.map((link: any) => (
+        {/* Public Navigation Links */}
+        <nav className="hidden md:flex items-center gap-3 text-sm">
+          {PUBLIC_NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               onClick={(e) => link.isAnchor && handleAnchorClick(e, link.sectionId)}
-              className="text-[#8A93A3] hover:text-[#EDEFF2] px-3 py-1.5 rounded-lg border border-transparent hover:border-[#242938] hover:bg-[#151922]/60 transition-all duration-200 font-medium"
+              className="text-[#8A93A3] hover:text-[#EDEFF2] px-3.5 py-2 rounded-xl border border-transparent hover:border-[#242938] hover:bg-[#151922]/60 transition-all duration-200 font-medium"
             >
               {link.label}
             </Link>
@@ -114,63 +86,35 @@ export default function Navbar() {
 
         {/* Action Buttons */}
         <div className="hidden md:flex items-center gap-3">
-          {!loading && !user && (
-            <div className="flex items-center gap-2">
-              <Link
-                href="/sign-in"
-                className="text-xs font-semibold text-[#EDEFF2] px-4 py-2 rounded-lg border border-[#242938] bg-[#151922]/40 hover:bg-[#151922] hover:border-[#FFB020]/50 transition-all duration-200"
-              >
-                Sign in
-              </Link>
+          <Link
+            href="/sign-in"
+            className="text-sm font-semibold text-[#EDEFF2] px-4.5 py-2.5 rounded-xl border border-[#242938] bg-[#151922]/40 hover:bg-[#151922] hover:border-[#FFB020]/50 transition-all duration-200"
+          >
+            Sign in
+          </Link>
 
-              <Link
-                href="/sign-in?mode=signup"
-                className="text-xs font-semibold text-[#0B0E14] bg-[#FFB020] hover:bg-[#ffa500] px-4 py-2 rounded-lg border border-transparent hover:border-[#EDEFF2] shadow-sm transition-all duration-200"
-              >
-                Sign up
-              </Link>
-            </div>
-          )}
-
-          {!loading && user && (
-            <div className="flex items-center gap-3">
-              <Link
-                href="/sell"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0B0E14] bg-[#FFB020] hover:bg-[#ffa500] px-3.5 py-2 rounded-lg border border-transparent hover:border-[#EDEFF2] transition-all duration-200 shadow-sm"
-              >
-                <Plus size={15} />
-                <span>List Account</span>
-              </Link>
-
-              <div className="flex items-center gap-2.5 pl-3 border-l border-[#242938]">
-                <UserAvatar user={user} />
-                <button
-                  onClick={signOut}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#8A93A3] hover:text-[#EDEFF2] bg-[#151922]/40 hover:bg-[#151922] border border-[#242938] hover:border-[#FFB020]/50 rounded-lg transition-all duration-200"
-                  title="Sign out"
-                >
-                  <LogOut size={13} />
-                  <span>Sign out</span>
-                </button>
-              </div>
-            </div>
-          )}
+          <Link
+            href="/sign-in?mode=signup"
+            className="text-sm font-semibold text-[#0B0E14] bg-[#FFB020] hover:bg-[#ffa500] px-4.5 py-2.5 rounded-xl border border-transparent hover:border-[#EDEFF2] shadow-sm transition-all duration-200"
+          >
+            Sign up
+          </Link>
         </div>
 
         {/* Mobile Hamburger Button */}
         <button
-          className="md:hidden p-1.5 text-[#EDEFF2] hover:text-white rounded-lg border border-[#242938] bg-[#151922]"
+          className="md:hidden p-2 text-[#EDEFF2] hover:text-white rounded-xl border border-[#242938] bg-[#151922]"
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="Toggle menu"
         >
-          {menuOpen ? <X size={20} /> : <Menu size={20} />}
+          {menuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
       {/* Mobile Menu */}
       {menuOpen && (
-        <div className="md:hidden px-5 pb-5 pt-3 flex flex-col gap-2 border-t border-[#242938] bg-[#0B0E14]">
-          {navLinks.map((link: any) => (
+        <div className="md:hidden px-6 pb-6 pt-3 flex flex-col gap-2.5 border-t border-[#242938] bg-[#0B0E14]">
+          {PUBLIC_NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -178,62 +122,27 @@ export default function Navbar() {
                 if (link.isAnchor) handleAnchorClick(e, link.sectionId);
                 setMenuOpen(false);
               }}
-              className="text-sm text-[#8A93A3] hover:text-[#EDEFF2] px-3 py-2 rounded-lg border border-transparent hover:border-[#242938] hover:bg-[#151922] transition-all"
+              className="text-sm font-medium text-[#8A93A3] hover:text-[#EDEFF2] px-3.5 py-2.5 rounded-xl border border-transparent hover:border-[#242938] hover:bg-[#151922] transition-all"
             >
               {link.label}
             </Link>
           ))}
 
-          <div className="pt-3 border-t border-[#242938] mt-1">
-            {!loading && !user && (
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  href="/sign-in"
-                  onClick={() => setMenuOpen(false)}
-                  className="rounded-lg px-4 py-2 text-xs font-semibold text-[#EDEFF2] bg-[#151922] border border-[#242938] hover:border-[#FFB020] text-center transition-all"
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href="/sign-in?mode=signup"
-                  onClick={() => setMenuOpen(false)}
-                  className="rounded-lg px-4 py-2 text-xs font-semibold bg-[#FFB020] text-[#0B0E14] text-center transition-all"
-                >
-                  Sign up
-                </Link>
-              </div>
-            )}
-
-            {!loading && user && (
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-center justify-between bg-[#151922] p-2.5 rounded-lg border border-[#242938]">
-                  <div className="flex items-center gap-2.5">
-                    <UserAvatar user={user} />
-                    <span className="text-xs text-[#EDEFF2] truncate max-w-[140px] font-medium">
-                      {user.email}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      signOut();
-                    }}
-                    className="inline-flex items-center gap-1 text-xs text-[#8A93A3] hover:text-[#FFB020] transition-colors"
-                  >
-                    <LogOut size={14} />
-                    <span>Sign out</span>
-                  </button>
-                </div>
-
-                <Link
-                  href="/sell"
-                  onClick={() => setMenuOpen(false)}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-xs font-semibold bg-[#FFB020] text-[#0B0E14] text-center"
-                >
-                  <Plus size={14} /> List Account
-                </Link>
-              </div>
-            )}
+          <div className="pt-3 border-t border-[#242938] mt-2 grid grid-cols-2 gap-3">
+            <Link
+              href="/sign-in"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-semibold text-[#EDEFF2] bg-[#151922] border border-[#242938] hover:border-[#FFB020] text-center transition-all"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/sign-in?mode=signup"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-semibold bg-[#FFB020] text-[#0B0E14] text-center transition-all"
+            >
+              Sign up
+            </Link>
           </div>
         </div>
       )}

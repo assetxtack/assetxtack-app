@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "../../context/AuthContext";
 import { 
   LayoutDashboard, 
   Store, 
@@ -10,10 +11,12 @@ import {
   Wallet, 
   HelpCircle, 
   X,
-  LogOut
+  LogOut,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 
-function XMark({ size = 20 }: { size?: number }) {
+function XMark({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M4 6L20 18" stroke="#FFB020" strokeWidth="2.4" strokeLinecap="round" />
@@ -24,7 +27,7 @@ function XMark({ size = 20 }: { size?: number }) {
   );
 }
 
-function Wordmark({ size = 18 }: { size?: number }) {
+function Wordmark({ size = 20 }: { size?: number }) {
   return (
     <span
       className="inline-flex items-center gap-1 font-[var(--font-display)] font-bold text-[#EDEFF2]"
@@ -55,25 +58,41 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
+
+  // Dynamic user checks
+  const isVerifiedSeller = (user as any)?.isVerified || false;
+  const displayName = user?.displayName || user?.email?.split("@")[0] || "Iyere";
+  const userInitial = displayName.charAt(0).toUpperCase();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push("/sign-in");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   const navContent = (
     <div className="flex flex-col h-full bg-[#151922] border-r border-[#242938]">
       {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-6 border-b border-[#242938]">
+      <div className="h-20 flex items-center justify-between px-6 border-b border-[#242938]">
         <Link href="/dashboard" className="flex items-center">
-          <Wordmark size={19} />
+          <Wordmark size={22} />
         </Link>
         <button 
           onClick={() => setMobileOpen(false)}
-          className="lg:hidden text-[#8A93A3] hover:text-[#EDEFF2] p-1 rounded-lg"
+          className="lg:hidden text-[#8A93A3] hover:text-[#EDEFF2] p-1.5 rounded-lg bg-[#0B0E14]"
         >
-          <X size={20} />
+          <X size={22} />
         </button>
       </div>
 
       {/* Navigation Links */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-1.5">
-        <div className="px-3 mb-2 text-[10px] font-semibold text-[#8A93A3] uppercase tracking-wider font-[var(--font-mono)]">
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
+        <div className="px-3 mb-3 text-xs font-semibold text-[#8A93A3] uppercase tracking-wider font-[var(--font-mono)]">
           Main Menu
         </div>
         {NAV_ITEMS.map((item) => {
@@ -85,18 +104,18 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                 isActive
-                  ? "bg-[#FFB020]/10 text-[#FFB020] border border-[#FFB020]/20"
+                  ? "bg-[#FFB020]/10 text-[#FFB020] border border-[#FFB020]/20 shadow-sm"
                   : "text-[#8A93A3] hover:bg-[#0B0E14] hover:text-[#EDEFF2]"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <Icon size={18} className={isActive ? "text-[#FFB020]" : "text-[#8A93A3]"} />
+              <div className="flex items-center gap-3.5">
+                <Icon size={20} className={isActive ? "text-[#FFB020]" : "text-[#8A93A3]"} />
                 <span>{item.name}</span>
               </div>
               {item.badge && (
-                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#7C5CFC]/20 text-[#7C5CFC] border border-[#7C5CFC]/30">
+                <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-[#7C5CFC]/20 text-[#7C5CFC] border border-[#7C5CFC]/30">
                   {item.badge}
                 </span>
               )}
@@ -107,26 +126,38 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
       {/* User Quick Info & Sign Out Footer */}
       <div className="p-4 border-t border-[#242938] bg-[#0B0E14]/40">
-        <div className="p-3 bg-[#0B0E14] rounded-xl border border-[#242938] flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-[#FFB020]/20 border border-[#FFB020]/30 text-[#FFB020] font-bold text-xs flex items-center justify-center shrink-0">
-              I
+        <div className="p-3.5 bg-[#0B0E14] rounded-xl border border-[#242938] flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-10 h-10 rounded-xl bg-[#FFB020]/20 border border-[#FFB020]/30 text-[#FFB020] font-bold text-sm flex items-center justify-center shrink-0">
+              {userInitial}
             </div>
             <div className="overflow-hidden text-left">
-              <div className="text-xs font-bold text-[#EDEFF2] truncate">Iyere</div>
-              <div className="text-[10px] text-[#8A93A3] truncate">Verified Trader</div>
+              <div className="text-sm font-bold text-[#EDEFF2] truncate">{displayName}</div>
+              <div className={`text-xs font-medium flex items-center gap-1 ${isVerifiedSeller ? "text-emerald-400" : "text-amber-400"}`}>
+                {isVerifiedSeller ? (
+                  <>
+                    <CheckCircle2 size={12} />
+                    <span>Verified Trader</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={12} />
+                    <span>Unverified Seller</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Online" />
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isVerifiedSeller ? "bg-emerald-400" : "bg-amber-400"}`} />
         </div>
 
-        <Link
-          href="/sign-in"
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
         >
-          <LogOut size={16} />
+          <LogOut size={18} />
           <span>Sign Out</span>
-        </Link>
+        </button>
       </div>
     </div>
   );
