@@ -287,7 +287,7 @@ export default function MyListingsPage() {
           setIsCreateModalOpen(true);
         }}
       />
-
+    
       {/* Listing Form Modal */}
       <CreateListingModal 
         isOpen={isCreateModalOpen} 
