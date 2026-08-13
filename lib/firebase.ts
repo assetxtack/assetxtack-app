@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDummyKeyForStaticBuilds123456",
@@ -10,7 +10,16 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:1234567890:web:1234567890",
 };
 
+// Initialize App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = typeof window !== "undefined" ? getAuth(app) : ({} as ReturnType<typeof getAuth>);
+
+// Safely initialize Auth only on client-side
+let auth: Auth;
+
+if (typeof window !== "undefined") {
+  auth = getAuth(app);
+} else {
+  auth = {} as Auth;
+}
 
 export { app, auth };
