@@ -3,7 +3,8 @@ import { getAuth, Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDummyKeyForStaticBuilds123456",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "assetxtack.firebaseapp.com",
+  // Prefer production custom domain to prevent mobile 3rd-party cookie blocking
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "assetxtack-app-kappa.vercel.app",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "assetxtack",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "assetxtack.appspot.com",
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "1234567890",

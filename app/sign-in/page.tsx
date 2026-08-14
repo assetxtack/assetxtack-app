@@ -7,9 +7,10 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  onAuthStateChanged,
   GoogleAuthProvider 
 } from "firebase/auth";
-import { auth } from "@/lib/firebase"; // Ensure path points to your firebase config
+import { auth } from "@/lib/firebase";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -25,28 +26,35 @@ export default function SignInPage() {
     setError("");
     setTimeout(() => {
       router.push("/dashboard");
-    }, 1500); // 1.5 second delay so user sees the success message
+    }, 1200);
   };
 
-  // Safely check for mobile redirect results on mount without interrupting normal flow
+  // Listen for active user session OR mobile redirect completion on mount
   useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
+    // 1. Handle redirect result after returning from Google
+    getRedirectResult(auth)
+      .then((result) => {
         if (result?.user) {
           handleSuccess();
         }
-      } catch (err: any) {
-        // Only trigger error if user actively tried to sign in via redirect
+      })
+      .catch((err) => {
         if (err.code !== "auth/popup-closed-by-user") {
           setError(err.message || "Google sign-in failed. Please try again.");
         }
-      }
-    };
-    checkRedirect();
-  }, []);
+      });
 
-  // 1. Email & Password Login
+    // 2. Fallback session listener (catches active state upon mobile page reload)
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        handleSuccess();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  // Email & Password Login
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -63,7 +71,7 @@ export default function SignInPage() {
     }
   };
 
-  // 2. Adaptive Google Provider Login (Popup for Desktop, Redirect for Mobile)
+  // Adaptive Google Provider Login
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError("");
@@ -74,10 +82,8 @@ export default function SignInPage() {
 
     try {
       if (isMobile) {
-        // Redirect prevents window popup blockers on mobile devices
         await signInWithRedirect(auth, provider);
       } else {
-        // Desktop retains fast inline popup flow
         await signInWithPopup(auth, provider);
         handleSuccess();
         setLoading(false);
