@@ -2,21 +2,17 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDummyKeyForStaticBuilds123456",
-  // Prefer production custom domain to prevent mobile 3rd-party cookie blocking
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "assetxtack-app-kappa.vercel.app",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "assetxtack",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "assetxtack.appspot.com",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "1234567890",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:1234567890:web:1234567890",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "assetxtack-eeca0.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Safely initialize Auth only on client-side
 let auth: Auth;
-
 if (typeof window !== "undefined") {
   auth = getAuth(app);
 } else {

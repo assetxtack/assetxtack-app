@@ -1,8 +1,13 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/__/auth/:path*",
+        destination: "https://assetxtack-eeca0.firebaseapp.com/__/auth/:path*",
+      },
+    ];
+  },
 };
 
-export default nextConfig;
-
+module.exports = nextConfig;
