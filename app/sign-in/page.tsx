@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   signInWithEmailAndPassword, 
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider 
@@ -27,21 +28,23 @@ export default function SignInPage() {
     }, 1500); // 1.5 second delay so user sees the success message
   };
 
-  // Listen for mobile Google redirect results when the component mounts
+  // Safely check for mobile redirect results on mount without interrupting normal flow
   useEffect(() => {
-    const checkRedirectResult = async () => {
+    const checkRedirect = async () => {
       try {
         const result = await getRedirectResult(auth);
         if (result?.user) {
           handleSuccess();
         }
       } catch (err: any) {
-        setError(err.message || "Google sign-in failed. Please try again.");
+        // Only trigger error if user actively tried to sign in via redirect
+        if (err.code !== "auth/popup-closed-by-user") {
+          setError(err.message || "Google sign-in failed. Please try again.");
+        }
       }
     };
-
-    checkRedirectResult();
-  }, [router]);
+    checkRedirect();
+  }, []);
 
   // 1. Email & Password Login
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -60,18 +63,29 @@ export default function SignInPage() {
     }
   };
 
-  // 2. Google Provider Login (Mobile-friendly Redirect)
+  // 2. Adaptive Google Provider Login (Popup for Desktop, Redirect for Mobile)
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError("");
     setSuccess("");
 
+    const provider = new GoogleAuthProvider();
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
     try {
-      const provider = new GoogleAuthProvider();
-      // Using redirect prevents popups from getting blocked or closed on mobile web
-      await signInWithRedirect(auth, provider);
+      if (isMobile) {
+        // Redirect prevents window popup blockers on mobile devices
+        await signInWithRedirect(auth, provider);
+      } else {
+        // Desktop retains fast inline popup flow
+        await signInWithPopup(auth, provider);
+        handleSuccess();
+        setLoading(false);
+      }
     } catch (err: any) {
-      setError(err.message || "Google sign-in failed. Please try again.");
+      if (err.code !== "auth/popup-closed-by-user") {
+        setError(err.message || "Google sign-in failed. Please try again.");
+      }
       setLoading(false);
     }
   };
@@ -121,7 +135,7 @@ export default function SignInPage() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
             />
           </svg>
-          Continue with Google
+          {loading ? "Connecting..." : "Continue with Google"}
         </button>
 
         {/* Divider */}
