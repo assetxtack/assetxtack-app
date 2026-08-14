@@ -29,3 +29,16 @@ body {
 .animate-zoom {
   animation: zoomInOut 20s infinite ease-in-out;
 }
+
+@keyframes borderRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-border-spin {
+  animation: borderRotate 4s linear infinite;
+}
