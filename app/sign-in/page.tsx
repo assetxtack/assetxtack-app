@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   signInWithEmailAndPassword, 
-  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider 
 } from "firebase/auth";
 import { auth } from "@/lib/firebase"; // Ensure path points to your firebase config
@@ -26,6 +27,22 @@ export default function SignInPage() {
     }, 1500); // 1.5 second delay so user sees the success message
   };
 
+  // Listen for mobile Google redirect results when the component mounts
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          handleSuccess();
+        }
+      } catch (err: any) {
+        setError(err.message || "Google sign-in failed. Please try again.");
+      }
+    };
+
+    checkRedirectResult();
+  }, [router]);
+
   // 1. Email & Password Login
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +60,7 @@ export default function SignInPage() {
     }
   };
 
-  // 2. Google Provider Login
+  // 2. Google Provider Login (Mobile-friendly Redirect)
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError("");
@@ -51,11 +68,10 @@ export default function SignInPage() {
 
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      handleSuccess();
+      // Using redirect prevents popups from getting blocked or closed on mobile web
+      await signInWithRedirect(auth, provider);
     } catch (err: any) {
       setError(err.message || "Google sign-in failed. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
