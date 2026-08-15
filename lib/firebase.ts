@@ -1,5 +1,12 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
+import { 
+  getAuth, 
+  setPersistence, 
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  inMemoryPersistence,
+  Auth 
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,12 +18,14 @@ const firebaseConfig = {
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth: Auth = getAuth(app);
 
-let auth: Auth;
+// Safe persistence fallback for mobile browsers blocking IndexedDB
 if (typeof window !== "undefined") {
-  auth = getAuth(app);
-} else {
-  auth = {} as Auth;
+  setPersistence(auth, indexedDBLocalPersistence)
+    .catch(() => setPersistence(auth, browserLocalPersistence))
+    .catch(() => setPersistence(auth, inMemoryPersistence))
+    .catch((err) => console.error("Firebase persistence error:", err));
 }
 
 export { app, auth };

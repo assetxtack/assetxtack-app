@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   signInWithEmailAndPassword, 
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  onAuthStateChanged,
-  GoogleAuthProvider 
+  signInWithPopup, 
+  signInWithRedirect, 
+  getRedirectResult, 
+  GoogleAuthProvider, 
+  onAuthStateChanged 
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -16,22 +16,20 @@ export default function SignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  // Helper function to handle post-login redirect
   const handleSuccess = () => {
-    setSuccess("Login successful! Redirecting to your dashboard...");
+    setSuccess("Login successful! Redirecting...");
     setError("");
     setTimeout(() => {
       router.push("/dashboard");
-    }, 1200);
+    }, 1000);
   };
 
-  // Listen for active user session OR mobile redirect completion on mount
   useEffect(() => {
-    // 1. Handle redirect result after returning from Google
+    // 1. Check redirect result when mobile returns from Google
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
@@ -39,12 +37,16 @@ export default function SignInPage() {
         }
       })
       .catch((err) => {
-        if (err.code !== "auth/popup-closed-by-user") {
+        // Silently filter out browser storage warnings & user cancellations
+        const isStorageError = err?.message?.includes("Database") || err?.code === "auth/internal-error";
+        const isUserClosed = err?.code === "auth/popup-closed-by-user";
+
+        if (!isStorageError && !isUserClosed) {
           setError(err.message || "Google sign-in failed. Please try again.");
         }
       });
 
-    // 2. Fallback session listener (catches active state upon mobile page reload)
+    // 2. Active auth listener
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         handleSuccess();
@@ -54,7 +56,6 @@ export default function SignInPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // Email & Password Login
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -71,57 +72,78 @@ export default function SignInPage() {
     }
   };
 
-  // Adaptive Google Provider Login
-  const handleGoogleLogin = async () => {
-    setLoading(true);
+  const handleGoogleSignIn = async () => {
     setError("");
     setSuccess("");
+    setLoading(true);
 
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     try {
       if (isMobile) {
-        await signInWithRedirect(auth, provider);
+        try {
+          await signInWithPopup(auth, provider);
+          handleSuccess();
+        } catch (popupErr: any) {
+          if (
+            popupErr.code === "auth/popup-blocked" || 
+            popupErr.code === "auth/operation-not-supported-in-this-environment"
+          ) {
+            await signInWithRedirect(auth, provider);
+          } else {
+            throw popupErr;
+          }
+        }
       } else {
         await signInWithPopup(auth, provider);
         handleSuccess();
-        setLoading(false);
       }
     } catch (err: any) {
-      if (err.code !== "auth/popup-closed-by-user") {
-        setError(err.message || "Google sign-in failed. Please try again.");
+      const isStorageError = err?.message?.includes("Database") || err?.code === "auth/internal-error";
+      const isUserClosed = err?.code === "auth/popup-closed-by-user";
+
+      if (!isStorageError && !isUserClosed) {
+        setError(err.message || "Failed to sign in with Google.");
       }
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 text-white">
-      <div className="w-full max-w-md rounded-2xl bg-slate-800 p-8 shadow-xl border border-slate-700">
-        <h2 className="mb-2 text-center text-3xl font-bold text-white">Welcome Back</h2>
-        <p className="mb-6 text-center text-sm text-slate-400">
+    <div className="flex min-h-screen items-center justify-center bg-[#0b101b] px-4 py-12 text-white">
+      {/* Main Glassmorphism/Dark Card */}
+      <div className="w-full max-w-md rounded-2xl bg-[#141c2e]/90 p-8 shadow-2xl border border-slate-800/80 backdrop-blur-md">
+        
+        {/* Title & Subtitle */}
+        <h2 className="mb-2 text-center text-3xl font-extrabold tracking-tight text-white">
+          Welcome Back
+        </h2>
+        <p className="mb-6 text-center text-sm font-medium text-slate-400">
           Sign in to access your AssetXtack Dashboard
         </p>
 
-        {/* Feedback Messages */}
+        {/* Notifications */}
         {error && (
-          <div className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-400 border border-red-500/20">
+          <div className="mb-4 rounded-lg bg-red-500/10 p-3 text-xs text-red-400 border border-red-500/20 text-center font-medium">
             {error}
           </div>
         )}
         {success && (
-          <div className="mb-4 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-400 border border-emerald-500/20 font-medium">
+          <div className="mb-4 rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-400 border border-emerald-500/20 text-center font-medium">
             {success}
           </div>
         )}
 
-        {/* Google Login Button */}
+        {/* Google Sign-In Button */}
         <button
-          onClick={handleGoogleLogin}
+          onClick={handleGoogleSignIn}
           disabled={loading}
           type="button"
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-600 bg-slate-700/50 py-3 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-700 bg-[#1e293b]/60 py-3 px-4 text-sm font-semibold text-white transition hover:bg-[#1e293b] hover:border-slate-600 disabled:opacity-50"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
@@ -144,47 +166,54 @@ export default function SignInPage() {
           {loading ? "Connecting..." : "Continue with Google"}
         </button>
 
-        {/* Divider */}
+        {/* Divider Line */}
         <div className="my-6 flex items-center gap-3">
-          <div className="h-px flex-1 bg-slate-700" />
-          <span className="text-xs text-slate-500 uppercase">Or with email</span>
-          <div className="h-px flex-1 bg-slate-700" />
+          <div className="h-px flex-1 bg-slate-800" />
+          <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+            Or with email
+          </span>
+          <div className="h-px flex-1 bg-slate-800" />
         </div>
 
         {/* Email & Password Form */}
         <form onSubmit={handleEmailLogin} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-400">Email Address</label>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+              Email Address
+            </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm border border-slate-700 text-white focus:border-amber-500 focus:outline-none"
+              className="w-full rounded-lg bg-[#0b101b] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-400">Password</label>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+              Password
+            </label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm border border-slate-700 text-white focus:border-amber-500 focus:outline-none"
+              className="w-full rounded-lg bg-[#0b101b] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-amber-500 py-3 font-semibold text-slate-950 transition hover:bg-amber-400 disabled:opacity-50"
+            className="w-full rounded-lg bg-amber-500 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-400 active:scale-[0.99] disabled:opacity-50 mt-2"
           >
             {loading ? "Signing in..." : "Sign In with Email"}
           </button>
         </form>
+
       </div>
     </div>
   );
