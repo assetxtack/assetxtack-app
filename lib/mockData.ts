@@ -17,6 +17,7 @@ export interface MarketListing {
   platform: string;
   status: "available" | "sold" | "reserved";
   images: string[];
+  hasShieldProtection?: boolean; // <-- Add this field
 }
 
 export interface UserStats {

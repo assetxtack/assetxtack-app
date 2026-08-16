@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LayoutDashboard } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import NotificationDropdown from "./NotificationDropdown";
 
 function XMark({ size = 22 }: { size?: number }) {
   return (
@@ -46,11 +47,6 @@ export default function Navbar() {
   const { user, loading } = useAuth();
   const pathname = usePathname();
 
-  // 1. Hide Navbar completely if the user is authenticated
-  if (!loading && user) {
-    return null;
-  }
-
   const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, sectionId?: string) => {
     if (!sectionId) return;
 
@@ -70,49 +66,66 @@ export default function Navbar() {
       <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
         <Wordmark size={22} />
 
-        {/* Public Navigation Links */}
-        <nav className="hidden md:flex items-center gap-3 text-sm">
-          {PUBLIC_NAV_LINKS.map((link) => (
+        {/* AUTHENTICATED USER NAV */}
+        {!loading && user ? (
+          <div className="flex items-center gap-3">
             <Link
-              key={link.href}
-              href={link.href}
-              onClick={(e) => link.isAnchor && handleAnchorClick(e, link.sectionId)}
-              className="text-[#8A93A3] hover:text-[#EDEFF2] px-3.5 py-2 rounded-xl border border-transparent hover:border-[#242938] hover:bg-[#151922]/60 transition-all duration-200 font-medium"
+              href="/dashboard"
+              className="hidden sm:inline-flex items-center gap-2 text-xs font-semibold text-[#EDEFF2] px-3.5 py-2 rounded-xl border border-[#242938] bg-[#151922]/60 hover:bg-[#151922] transition-all"
             >
-              {link.label}
+              <LayoutDashboard className="w-4 h-4 text-[#FFB020]" />
+              Dashboard
             </Link>
-          ))}
-        </nav>
 
-        {/* Action Buttons */}
-        <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/sign-in"
-            className="text-sm font-semibold text-[#EDEFF2] px-4.5 py-2.5 rounded-xl border border-[#242938] bg-[#151922]/40 hover:bg-[#151922] hover:border-[#FFB020]/50 transition-all duration-200"
-          >
-            Sign in
-          </Link>
+            {/* Real-time Notification Component */}
+            <NotificationDropdown userId={user.uid} />
+          </div>
+        ) : (
+          /* PUBLIC VISITOR NAV */
+          <>
+            <nav className="hidden md:flex items-center gap-3 text-sm">
+              {PUBLIC_NAV_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={(e) => link.isAnchor && handleAnchorClick(e, link.sectionId)}
+                  className="text-[#8A93A3] hover:text-[#EDEFF2] px-3.5 py-2 rounded-xl border border-transparent hover:border-[#242938] hover:bg-[#151922]/60 transition-all duration-200 font-medium"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
 
-          <Link
-            href="/sign-in?mode=signup"
-            className="text-sm font-semibold text-[#0B0E14] bg-[#FFB020] hover:bg-[#ffa500] px-4.5 py-2.5 rounded-xl border border-transparent hover:border-[#EDEFF2] shadow-sm transition-all duration-200"
-          >
-            Sign up
-          </Link>
-        </div>
+            <div className="hidden md:flex items-center gap-3">
+              <Link
+                href="/sign-in"
+                className="text-sm font-semibold text-[#EDEFF2] px-4.5 py-2.5 rounded-xl border border-[#242938] bg-[#151922]/40 hover:bg-[#151922] hover:border-[#FFB020]/50 transition-all duration-200"
+              >
+                Sign in
+              </Link>
 
-        {/* Mobile Hamburger Button */}
-        <button
-          className="md:hidden p-2 text-[#EDEFF2] hover:text-white rounded-xl border border-[#242938] bg-[#151922]"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {menuOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
+              <Link
+                href="/sign-in?mode=signup"
+                className="text-sm font-semibold text-[#0B0E14] bg-[#FFB020] hover:bg-[#ffa500] px-4.5 py-2.5 rounded-xl border border-transparent hover:border-[#EDEFF2] shadow-sm transition-all duration-200"
+              >
+                Sign up
+              </Link>
+            </div>
+
+            {/* Mobile Hamburger Button */}
+            <button
+              className="md:hidden p-2 text-[#EDEFF2] hover:text-white rounded-xl border border-[#242938] bg-[#151922]"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Toggle menu"
+            >
+              {menuOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+          </>
+        )}
       </div>
 
-      {/* Mobile Menu */}
-      {menuOpen && (
+      {/* MOBILE MENU (Public Visitors Only) */}
+      {!user && menuOpen && (
         <div className="md:hidden px-6 pb-6 pt-3 flex flex-col gap-2.5 border-t border-[#242938] bg-[#0B0E14]">
           {PUBLIC_NAV_LINKS.map((link) => (
             <Link

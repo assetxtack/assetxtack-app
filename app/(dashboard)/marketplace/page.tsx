@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AuthGuard from "../../components/AuthGuard";
 import { mockMarketListings } from "@/lib/mockData";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { 
   Search, 
   SlidersHorizontal, 
@@ -11,16 +13,20 @@ import {
   ShieldAlert,
   Star, 
   CheckCircle2,
+  AlertTriangle,
   Gamepad2,
   Sparkles,
-  Zap
+  Zap,
+  Loader2
 } from "lucide-react";
 
 export default function MarketplacePage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRank, setSelectedRank] = useState("All");
   const [maxPrice, setMaxPrice] = useState<number | "">("");
   const [sortBy, setSortBy] = useState<"featured" | "price_asc" | "price_desc">("featured");
+  const [loadingListingId, setLoadingListingId] = useState<string | null>(null);
 
   const formatNaira = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -30,10 +36,48 @@ export default function MarketplacePage() {
     }).format(amount);
   };
 
+  const handleBuyEscrow = async (listing: (typeof mockMarketListings)[0]) => {
+    try {
+      setLoadingListingId(listing.id);
+
+      // 1. Create a dynamic order document in Firestore
+      const orderRef = await addDoc(collection(db, "orders"), {
+        title: listing.title,
+        amount: listing.price,
+        sellerName: listing.sellerName,
+        sellerId: listing.id || "SELLER_DEFAULT",
+        sellerVerified: listing.sellerVerified ?? false,
+        hasShieldProtection: listing.hasShieldProtection ?? listing.sellerVerified ?? false,
+        buyerId: "USER_BUYER_ID", // Bound to auth.currentUser.uid in production
+        status: "IN_ESCROW",
+        rank: listing.rank,
+        skinsCount: listing.skinsCount,
+        createdAt: serverTimestamp(),
+      });
+
+      // 2. Log initial system message to chat feed
+      await addDoc(collection(db, "chats"), {
+        orderId: orderRef.id,
+        senderId: "SYSTEM",
+        senderName: "System Guard",
+        text: `🔒 Escrow Funds locked in Vault (₦${listing.price.toLocaleString()}). Awaiting seller credential delivery.`,
+        isSystemMessage: true,
+        createdAt: serverTimestamp(),
+      });
+
+      // 3. Redirect buyer directly to the dynamic order route
+      router.push(`/orders/${orderRef.id}`);
+    } catch (error) {
+      console.error("Error initializing escrow order:", error);
+      setLoadingListingId(null);
+    }
+  };
+
   const filteredListings = mockMarketListings
     .filter((item) => {
-      const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            item.sellerName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.sellerName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesRank = selectedRank === "All" || item.rank === selectedRank;
       const matchesPrice = maxPrice === "" || item.price <= Number(maxPrice);
       return matchesSearch && matchesRank && matchesPrice;
@@ -55,7 +99,7 @@ export default function MarketplacePage() {
               Account Marketplace
             </h1>
             <p className="text-xs md:text-sm text-[#8A93A3] mt-1">
-              Verified gaming assets secured inside AssetXtack Escrow Vault.
+              Verified & Peer-to-Peer gaming assets secured inside AssetXtack Escrow Vault.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs text-[#EDEFF2] bg-[#151922] px-3.5 py-2 rounded-xl border border-[#242938]">
@@ -129,29 +173,33 @@ export default function MarketplacePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredListings.map((listing) => {
-              const isProtected = listing.sellerVerified;
+              // Paid Shield Protection Flag (for gold animated border & banner)
+              const hasShieldProtection = listing.hasShieldProtection ?? listing.sellerVerified ?? false;
+              // Separate KYC Flag for Seller Identity
+              const isSellerVerified = listing.sellerVerified ?? false;
+              const isLoading = loadingListingId === listing.id;
 
               return (
                 <div 
                   key={listing.id}
                   className={`relative group rounded-2xl p-[1.5px] overflow-hidden transition-all duration-300 hover:scale-[1.01] ${
-                    isProtected 
+                    hasShieldProtection 
                       ? "" 
                       : "bg-[#242938] hover:border-[#8A93A3]/40"
                   }`}
                 >
-                  {/* Rotating Gold Light Animation - ONLY FOR PROTECTED CARDS */}
-                  {isProtected && (
+                  {/* Gold Border Animation - ONLY FOR LISTINGS WITH PAID SHIELD PROTECTION */}
+                  {hasShieldProtection && (
                     <div className="absolute inset-[-1000%] animate-border-spin bg-[conic-gradient(from_90deg_at_50%_50%,#151922_0%,#FFB020_50%,#151922_100%)] opacity-80 group-hover:opacity-100 transition-opacity" />
                   )}
 
-                  {/* Main Card Body */}
+                  {/* Card Body */}
                   <div className="relative h-full bg-[#151922] rounded-2xl p-5 flex flex-col justify-between">
                     
                     <div>
-                      {/* Protection Badge Banner */}
+                      {/* Shield Protection Banner (Paid Upgrade) */}
                       <div className="flex items-center justify-between gap-2 mb-4">
-                        {isProtected ? (
+                        {hasShieldProtection ? (
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFB020]/10 border border-[#FFB020]/30 text-[#FFB020]">
                             <ShieldCheck size={14} className="shrink-0" />
                             <span className="text-[10px] font-extrabold uppercase tracking-wider">
@@ -172,18 +220,33 @@ export default function MarketplacePage() {
                         </div>
                       </div>
 
-                      {/* Seller Name & Verification */}
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <span className="text-xs font-semibold text-[#8A93A3]">Seller:</span>
-                        <span className="text-xs font-bold text-[#EDEFF2]">{listing.sellerName}</span>
-                        {listing.sellerVerified && (
-                          <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                      {/* Seller Identity & KYC Status Badge */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-[#8A93A3]">Seller:</span>
+                          <span className="text-xs font-bold text-[#EDEFF2]">{listing.sellerName}</span>
+                          {isSellerVerified ? (
+                            <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                          ) : (
+                            <AlertTriangle size={13} className="text-amber-400 shrink-0" />
+                          )}
+                        </div>
+
+                        {/* Distinct KYC Badge */}
+                        {isSellerVerified ? (
+                          <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                            Verified Seller
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                            Unverified Seller
+                          </span>
                         )}
                       </div>
 
-                      {/* Styled Listing Title */}
+                      {/* Title */}
                       <h3 className={`font-bold text-sm line-clamp-2 leading-snug my-2 transition-colors ${
-                        isProtected 
+                        hasShieldProtection 
                           ? "text-transparent bg-clip-text bg-gradient-to-r from-[#EDEFF2] via-white to-[#FFB020] group-hover:from-white group-hover:to-[#FFB020]" 
                           : "text-[#EDEFF2] group-hover:text-white"
                       }`}>
@@ -219,7 +282,7 @@ export default function MarketplacePage() {
                       </div>
                     </div>
 
-                    {/* Card Footer: Price & CTA */}
+                    {/* Card Footer: Price & Dynamic CTA */}
                     <div className="pt-4 border-t border-[#242938] flex items-center justify-between gap-3 mt-2">
                       <div>
                         <span className="text-[10px] text-[#8A93A3] font-semibold block uppercase">Escrow Price</span>
@@ -228,16 +291,27 @@ export default function MarketplacePage() {
                         </strong>
                       </div>
 
-                      <Link
-                        href={`/marketplace/${listing.id}`}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md ${
-                          isProtected
+                      <button
+                        onClick={() => handleBuyEscrow(listing)}
+                        disabled={isLoading || loadingListingId !== null}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
+                          hasShieldProtection
                             ? "bg-gradient-to-r from-[#FFB020] to-[#ffa500] text-[#0B0E14] hover:brightness-110 shadow-[#FFB020]/10"
                             : "bg-[#242938] text-[#EDEFF2] hover:bg-[#2d3446]"
                         }`}
                       >
-                        <Zap size={14} className={isProtected ? "fill-[#0B0E14]" : "text-[#FFB020]"} /> Buy Escrow
-                      </Link>
+                        {isLoading ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin text-current" />
+                            Locking...
+                          </>
+                        ) : (
+                          <>
+                            <Zap size={14} className={hasShieldProtection ? "fill-[#0B0E14]" : "text-[#FFB020]"} /> 
+                            Buy Escrow
+                          </>
+                        )}
+                      </button>
                     </div>
 
                   </div>

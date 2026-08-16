@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@/app/context/AuthContext";
+import NotificationDropdown from "../NotificationDropdown";
 import { 
   Menu, 
-  Bell, 
   Search, 
   ChevronDown, 
   ShieldCheck,
@@ -16,6 +17,8 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
+  const { user } = useAuth();
+
   return (
     <header className="h-16 bg-[#151922] border-b border-[#242938] sticky top-0 z-20 px-4 md:px-8 flex items-center justify-between gap-4">
       
@@ -40,14 +43,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
       {/* Right: Notifications & Profile */}
       <div className="flex items-center gap-3">
-        {/* Notification Bell */}
-        <button 
-          className="relative p-2 text-[#8A93A3] hover:text-[#EDEFF2] rounded-xl bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/30 transition-colors"
-          title="Notifications"
-        >
-          <Bell size={18} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FFB020]" />
-        </button>
+        {user && <NotificationDropdown userId={user.uid} />}
 
         {/* User Account Menu */}
         <div className="relative group">

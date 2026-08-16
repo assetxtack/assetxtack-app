@@ -7,6 +7,7 @@ import {
   inMemoryPersistence,
   Auth 
 } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -19,6 +20,7 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth: Auth = getAuth(app);
+const db = getFirestore(app);
 
 // Safe persistence fallback for mobile browsers blocking IndexedDB
 if (typeof window !== "undefined") {
@@ -28,4 +30,4 @@ if (typeof window !== "undefined") {
     .catch((err) => console.error("Firebase persistence error:", err));
 }
 
-export { app, auth };
+export { app, auth, db };
