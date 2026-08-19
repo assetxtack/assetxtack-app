@@ -11,10 +11,20 @@ import {
   signOut as firebaseSignOut,
   User,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { syncUserToFirestore } from "@/lib/authSync";
+
+// Custom user interface extending Firebase Auth User with Firestore profile fields
+export interface AppUser extends User {
+  isVerified?: boolean;
+  kycStatus?: "none" | "pending" | "verified" | "rejected";
+  username?: string;
+  phoneNumberProfile?: string;
+}
 
 type AuthContextType = {
-  user: User | null;
+  user: AppUser | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   sendEmailLink: (email: string) => Promise<void>;
@@ -27,15 +37,53 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const EMAIL_STORAGE_KEY = "assetxtack_email_for_signin";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
+    let unsubscribeFirestore: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (authUser) => {
+      if (!authUser) {
+        setUser(null);
+        setLoading(false);
+        if (unsubscribeFirestore) unsubscribeFirestore();
+        return;
+      }
+
+      try {
+        await syncUserToFirestore(authUser);
+      } catch (error) {
+        console.error("Failed to sync user to Firestore:", error);
+      }
+
+      const userDocRef = doc(db, "users", authUser.uid);
+      unsubscribeFirestore = onSnapshot(
+        userDocRef,
+        (docSnap) => {
+          const profileData = docSnap.exists() ? docSnap.data() : {};
+
+          setUser({
+            ...authUser,
+            isVerified: Boolean(profileData.sellerVerified || profileData.isVerified),
+            kycStatus: profileData.kycStatus || "none",
+            username: profileData.username || authUser.displayName || "",
+          } as AppUser);
+
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Error fetching user profile from Firestore:", error);
+          setUser(authUser as AppUser);
+          setLoading(false);
+        }
+      );
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeFirestore) unsubscribeFirestore();
+    };
   }, []);
 
   const signInWithGoogle = async () => {

@@ -1,8 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
+import { db } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 import { 
   LayoutDashboard, 
   Store, 
@@ -61,9 +64,32 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   const router = useRouter();
   const { user, signOut } = useAuth();
 
-  // Dynamic user checks
-  const isVerifiedSeller = (user as any)?.isVerified || false;
-  const displayName = user?.displayName || user?.email?.split("@")[0] || "Iyere";
+  // Firestore real-time verification state
+  const [userData, setUserData] = useState<{ kycStatus?: string; sellerVerified?: boolean; fullName?: string } | null>(null);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    // Listen to changes on the user's Firestore document
+    const userDocRef = doc(db, "users", user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setUserData(docSnap.data() as any);
+      }
+    }, (error) => {
+      console.error("Error fetching live user verification state:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // Dynamic user checks based on Firestore document
+  const isVerifiedSeller = Boolean(
+    userData?.sellerVerified === true || 
+    userData?.kycStatus === "VERIFIED"
+  );
+
+  const displayName = userData?.fullName || user?.displayName || user?.email?.split("@")[0] || "Iyere";
   const userInitial = displayName.charAt(0).toUpperCase();
 
   const handleSignOut = async () => {
@@ -137,7 +163,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                 {isVerifiedSeller ? (
                   <>
                     <CheckCircle2 size={12} />
-                    <span>Verified Trader</span>
+                    <span>Verified Seller</span>
                   </>
                 ) : (
                   <>

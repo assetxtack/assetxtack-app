@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isUserId(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // USER PROFILES
+    match /users/{userId} {
+      allow read: if isAuthenticated(); // Needed to view seller profiles
+      allow write: if isUserId(userId);
+    }
+
+    // PUBLIC MARKETPLACE LISTINGS
+    match /listings/{listingId} {
+      allow read: if true;
+      allow create: if isAuthenticated() 
+        && request.resource.data.sellerId == request.auth.uid;
+      allow update, delete: if isAuthenticated() 
+        && resource.data.sellerId == request.auth.uid;
+    }
+
+    // SECURE ORDERS & CREDENTIAL HANDOVER
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.buyerId == request.auth.uid;
+      allow update: if isAuthenticated() && 
+        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
+    }
+
+    // CHATS & MESSAGES (FIXED FOR ORDER-BASED QUERYING)
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && (
+        resource.data.orderId != null ||
+        resource.data.senderId == request.auth.uid || 
+        resource.data.receiverId == request.auth.uid || 
+        (resource.data.participants != null && request.auth.uid in resource.data.participants)
+      );
+      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuthenticated() && 
+        (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+    }
+
+    // NOTIFICATIONS
+    match /notifications/{notificationId} {
+      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if false; // Only server/cloud functions should create notifications
+    }
+
+    // WALLETS
+    match /wallets/{walletId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Wallet balances should only be updated via backend logic
+    }
+
+    // WITHDRAWALS
+    match /withdrawals/{withdrawalId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // KYC VERIFICATION
+    match /kyc/{kycId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // DISPUTES
+    match /disputes/{disputeId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
+    }
+
+    // ESCROW (LOCKED TO SERVER-ONLY OR PARTIES)
+    match /escrow/{escrowId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
+      allow write: if false; // Must be managed strictly via Firebase Admin SDK / Paystack Webhooks
+    }
+
+    // ADMIN
+    match /admin/{docId} {
+      allow read, write: if false;
+    }
+  }
+}

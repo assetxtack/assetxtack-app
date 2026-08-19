@@ -2,77 +2,94 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/app/context/AuthContext";
 import { 
-  signInWithEmailAndPassword, 
-  signInWithPopup, 
-  signInWithRedirect, 
-  getRedirectResult, 
-  GoogleAuthProvider, 
-  onAuthStateChanged 
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function SignInPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const handleSuccess = () => {
-    setSuccess("Login successful! Redirecting...");
-    setError("");
-    setTimeout(() => {
+  useEffect(() => {
+    if (!authLoading && user) {
       router.push("/dashboard");
-    }, 1000);
-  };
+    }
+  }, [user, authLoading, router]);
 
   useEffect(() => {
-    // 1. Check redirect result when mobile returns from Google
+    if (!auth) return;
+
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
-          handleSuccess();
+          setSuccess("Login successful! Redirecting...");
         }
       })
       .catch((err) => {
-        // Silently filter out browser storage warnings & user cancellations
-        const isStorageError = err?.message?.includes("Database") || err?.code === "auth/internal-error";
-        const isUserClosed = err?.code === "auth/popup-closed-by-user";
+        const error = err as { message?: string; code?: string };
+        const isStorageError = error?.message?.includes("Database") || error.code === "auth/internal-error";
+        const isUserClosed = error.code === "auth/popup-closed-by-user";
 
         if (!isStorageError && !isUserClosed) {
-          setError(err.message || "Google sign-in failed. Please try again.");
+          setError(error.message || "Google sign-in failed. Please try again.");
         }
       });
-
-    // 2. Active auth listener
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        handleSuccess();
-      }
-    });
-
-    return () => unsubscribe();
   }, [router]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
     setSuccess("");
 
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      setError("Please provide both email and password.");
+      return;
+    }
+
+    if (!auth) {
+      setError("Firebase Authentication is not initialized properly.");
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      handleSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to log in. Please check your credentials.");
+      const { signInWithEmailAndPassword } = await import("firebase/auth");
+      await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+      setSuccess("Login successful! Redirecting...");
+    } catch (err) {
+      const error = err as { code?: string; message?: string };
+      const friendlyError =
+        error.code === "auth/invalid-credential" || error.code === "auth/user-not-found"
+          ? "Invalid email or password."
+          : error.message || "Failed to log in. Please check your credentials.";
+      setError(friendlyError);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    if (!auth) {
+      setError("Firebase Authentication is not initialized properly.");
+      return;
+    }
+
     setError("");
     setSuccess("");
     setLoading(true);
@@ -80,17 +97,18 @@ export default function SignInPage() {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     try {
       if (isMobile) {
         try {
           await signInWithPopup(auth, provider);
-          handleSuccess();
-        } catch (popupErr: any) {
+          setSuccess("Login successful! Redirecting...");
+        } catch (popupErr) {
+          const error = popupErr as { code?: string };
           if (
-            popupErr.code === "auth/popup-blocked" || 
-            popupErr.code === "auth/operation-not-supported-in-this-environment"
+            error.code === "auth/popup-blocked" || 
+            error.code === "auth/operation-not-supported-in-this-environment"
           ) {
             await signInWithRedirect(auth, provider);
           } else {
@@ -99,15 +117,50 @@ export default function SignInPage() {
         }
       } else {
         await signInWithPopup(auth, provider);
-        handleSuccess();
+        setSuccess("Login successful! Redirecting...");
       }
-    } catch (err: any) {
-      const isStorageError = err?.message?.includes("Database") || err?.code === "auth/internal-error";
-      const isUserClosed = err?.code === "auth/popup-closed-by-user";
+    } catch (err) {
+      const error = err as { message?: string; code?: string };
+      const isStorageError = error?.message?.includes("Database") || error.code === "auth/internal-error";
+      const isUserClosed = error.code === "auth/popup-closed-by-user";
 
       if (!isStorageError && !isUserClosed) {
-        setError(err.message || "Failed to sign in with Google.");
+        setError(error.message || "Failed to sign in with Google.");
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail) {
+      setError("Please enter your email address first.");
+      return;
+    }
+
+    if (!auth) {
+      setError("Firebase Authentication is not initialized properly.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+      setSuccess("If an account with that email exists, a password reset link has been sent.");
+    } catch (err) {
+      const error = err as { code?: string; message?: string };
+      const friendlyError =
+        error.code === "auth/user-not-found"
+          ? "If an account with that email exists, a password reset link has been sent."
+          : error.message || "Failed to send reset email. Please try again.";
+      setError(friendlyError);
     } finally {
       setLoading(false);
     }
@@ -115,10 +168,7 @@ export default function SignInPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0b101b] px-4 py-12 text-white">
-      {/* Main Glassmorphism/Dark Card */}
       <div className="w-full max-w-md rounded-2xl bg-[#141c2e]/90 p-8 shadow-2xl border border-slate-800/80 backdrop-blur-md">
-        
-        {/* Title & Subtitle */}
         <h2 className="mb-2 text-center text-3xl font-extrabold tracking-tight text-white">
           Welcome Back
         </h2>
@@ -126,7 +176,6 @@ export default function SignInPage() {
           Sign in to access your AssetXtack Dashboard
         </p>
 
-        {/* Notifications */}
         {error && (
           <div className="mb-4 rounded-lg bg-red-500/10 p-3 text-xs text-red-400 border border-red-500/20 text-center font-medium">
             {error}
@@ -138,7 +187,6 @@ export default function SignInPage() {
           </div>
         )}
 
-        {/* Google Sign-In Button */}
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
@@ -166,7 +214,6 @@ export default function SignInPage() {
           {loading ? "Connecting..." : "Continue with Google"}
         </button>
 
-        {/* Divider Line */}
         <div className="my-6 flex items-center gap-3">
           <div className="h-px flex-1 bg-slate-800" />
           <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
@@ -175,7 +222,6 @@ export default function SignInPage() {
           <div className="h-px flex-1 bg-slate-800" />
         </div>
 
-        {/* Email & Password Form */}
         <form onSubmit={handleEmailLogin} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-slate-300">
@@ -214,6 +260,23 @@ export default function SignInPage() {
           </button>
         </form>
 
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={handlePasswordReset}
+            disabled={loading}
+            className="text-xs font-semibold text-amber-500 hover:text-amber-400 disabled:opacity-50 transition"
+          >
+            Forgot Password?
+          </button>
+        </div>
+
+        <div className="mt-6 text-center text-xs text-slate-400">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="font-semibold text-amber-500 hover:text-amber-400 transition">
+            Sign Up
+          </Link>
+        </div>
       </div>
     </div>
   );

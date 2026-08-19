@@ -11,7 +11,7 @@ interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: "ESCROW_LOCKED" | "NEW_MESSAGE" | "DISPUTE_RAISED" | "ORDER_COMPLETED";
+  type: "ESCROW_LOCKED" | "ESCROW_DELIVERED" | "NEW_MESSAGE" | "DISPUTE_RAISED" | "ORDER_COMPLETED";
   orderId?: string;
   read: boolean;
   createdAt: any;
@@ -69,6 +69,8 @@ console.log("Current Logged-In User ID:", userId); // 👈 ADD HERE
     switch (type) {
       case "ESCROW_LOCKED":
         return <Package className="w-4 h-4 text-amber-400" />;
+      case "ESCROW_DELIVERED":
+        return <Package className="w-4 h-4 text-blue-400" />;
       case "NEW_MESSAGE":
         return <MessageSquare className="w-4 h-4 text-blue-400" />;
       case "DISPUTE_RAISED":
@@ -120,7 +122,7 @@ console.log("Current Logged-In User ID:", userId); // 👈 ADD HERE
               notifications.map((item) => (
                 <Link
                   key={item.id}
-                  href={item.orderId ? `/dashboard/orders/${item.orderId}` : "#"}
+                  href={item.orderId ? "/orders/" + item.orderId : "#"}
                   onClick={() => {
                     if (!item.read) markAsRead(item.id);
                     setIsOpen(false);

@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  serverTimestamp,
+import { useState, useEffect } from "react";
+import { Send, ShieldAlert, Lock } from "lucide-react";
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot, 
+  addDoc, 
+  serverTimestamp 
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Send, ShieldAlert, Lock } from "lucide-react";
 
 interface Message {
   id: string;
@@ -21,13 +21,14 @@ interface Message {
   text: string;
   isSystemMessage: boolean;
   isRedacted?: boolean;
-  createdAt: any;
+  createdAt: unknown;
 }
 
 interface TradeChatProps {
   orderId: string;
   currentUserId: string;
   currentUserName: string;
+  recipientId: string;
   orderStatus: string;
 }
 
@@ -35,39 +36,46 @@ export default function TradeChat({
   orderId,
   currentUserId,
   currentUserName,
+  recipientId,
   orderStatus,
 }: TradeChatProps) {
+  // recipientId and orderStatus are part of the public props interface
+  void recipientId;
+  void orderStatus;
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
+  // Firestore Real-Time Subscription Listener
   useEffect(() => {
     if (!orderId) return;
 
-    const q = query(
+    const chatsQuery = query(
       collection(db, "chats"),
       where("orderId", "==", orderId),
       orderBy("createdAt", "asc")
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Message[];
-      setMessages(docs);
-      scrollToBottom();
-    });
+    // Listen for real-time changes instantly without HTTP polling
+    const unsubscribe = onSnapshot(
+      chatsQuery,
+      (snapshot) => {
+        const loadedMessages: Message[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<Message, "id">),
+        }));
+        setMessages(loadedMessages);
+      },
+      (error) => {
+        console.error("Firestore Chat Listener Error:", error);
+      }
+    );
 
     return () => unsubscribe();
   }, [orderId]);
 
-  // Enhanced Sentinel Regex Filter
+  // Sentinel Regex Filter
   const sanitizeMessage = (text: string) => {
     const phoneRegex =
       /(\+?\d{1,4}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b(070|080|081|090|091)\d{8}\b/g;
@@ -94,9 +102,12 @@ export default function TradeChat({
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !orderId) return;
 
-    const { flagged, redactedText } = sanitizeMessage(newMessage);
+    const textToSend = newMessage;
+    setNewMessage(""); // Clear input early for snappy UX
+
+    const { flagged, redactedText } = sanitizeMessage(textToSend);
 
     if (flagged) {
       setWarningMessage(
@@ -106,6 +117,7 @@ export default function TradeChat({
     }
 
     try {
+      // Direct Firestore write for instant security rule evaluation
       await addDoc(collection(db, "chats"), {
         orderId,
         senderId: currentUserId,
@@ -115,10 +127,8 @@ export default function TradeChat({
         isRedacted: flagged,
         createdAt: serverTimestamp(),
       });
-
-      setNewMessage("");
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Error sending message to Firestore:", error);
     }
   };
 
@@ -162,9 +172,9 @@ export default function TradeChat({
           const isMe = msg.senderId === currentUserId;
 
           if (msg.isSystemMessage) {
-  return (
-    <div
-      key={msg.id}
+            return (
+              <div
+                key={msg.id}
                 className="my-3 flex items-center justify-center w-full"
               >
                 <div className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium text-center shadow-sm backdrop-blur-sm max-w-[90%]">
@@ -199,7 +209,6 @@ export default function TradeChat({
             </div>
           );
         })}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Form */}

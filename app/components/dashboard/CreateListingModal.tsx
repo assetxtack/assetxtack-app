@@ -3,21 +3,29 @@
 import { useState } from "react";
 import { 
   X, ShieldCheck, Gamepad2, AlertCircle, Upload, Key, Eye, EyeOff, 
-  Trash2, ChevronRight, ChevronLeft, ShieldAlert, Zap, Lock, CheckCircle2 
+  Trash2, ChevronRight, ChevronLeft, ShieldAlert, Zap, Lock, CheckCircle2, FileText, Sparkles, Info, AlertTriangle
 } from "lucide-react";
+import { db, auth } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 interface CreateListingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (formData: any) => void;
-  isVerifiedSeller?: boolean; // Controls whether instant or pending approval message displays
+  onSuccess?: (formData: Record<string, unknown>, id: string) => void;
+  isVerifiedSeller?: boolean;
+  onViewListing?: (id: string) => void;
+  onVerifyKyc?: () => void;
 }
+
+const POPULAR_SKIN_TAGS = ["Collector", "Legend", "PRIME", "KOF", "Aspirants", "M-Series", "Zodiac", "STUN", "11.11", "515"];
 
 export default function CreateListingModal({ 
   isOpen, 
   onClose, 
   onSuccess,
-  isVerifiedSeller = false 
+  isVerifiedSeller = false,
+  onViewListing,
+  onVerifyKyc
 }: CreateListingModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -25,52 +33,72 @@ export default function CreateListingModal({
   const [showPassword, setShowPassword] = useState(false);
   const [showSecondaryPass, setShowSecondaryPass] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [createdId, setCreatedId] = useState<string>("");
 
   // Form State
   const [formData, setFormData] = useState({
-    // Step 1: Listing Details
     title: "",
     rank: "Mythical Glory",
     skinsCount: "",
     heroesCount: "",
+    winRate: "60%",
     price: "",
     loginMethod: "Moonton Account",
     description: "",
+    featuredSkins: [] as string[],
 
-    // Step 3: Comprehensive Security Credentials
+    // Social Media Unbind Statuses
+    moontonStatus: "Clean Email (Handover Ready)",
+    vkBoundStatus: "Unbound",
+    facebookBoundStatus: "Unbound",
+    tiktokBoundStatus: "Unbound",
+    googlePlayStatus: "Unbound",
+    appleIdStatus: "Unbound",
+
+    // Credentials Payload
     accountEmail: "",
     accountPassword: "",
     secondaryPassword: "",
     has2FA: "No",
     twoFactorDetails: "",
-    vkBoundStatus: "Unbound",
-    vkEmailOrPhone: "",
-    tiktokBoundStatus: "Unbound",
-    facebookBoundStatus: "Unbound",
-    recoveryNotes: "",
+    unboundConfirmation: false,
 
-    // Step 4: AssetXtack Shield Guard
-    enableShieldGuard: true, // Recommended by default
+    // Listing Plan & Featured Boost
+    listingPlan: "shield" as "shield" | "standard",
     shieldDurationDays: 30,
   });
 
-  // Multiple Image Previews State (Step 2)
+  // Screenshot Upload State (Max 15)
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
   if (!isOpen) return null;
 
-  // Real-time Fee Calculation (10% AssetXtack Shield Fee)
+  // Real-time Dynamic Fee Calculation
   const numericPrice = Number(formData.price) || 0;
-  const calculatedShieldFee = Math.round(numericPrice * 0.10);
+  const isFeaturedBoost = formData.listingPlan === "shield";
+  const feePercentage = isFeaturedBoost ? 10 : 5; // 10% for Featured Boost / Shield Guard, 5% for Standard
+  const calculatedFee = Math.round((numericPrice * feePercentage) / 100);
+  const netPayout = numericPrice - calculatedFee;
 
-  // Handle Screenshot Selection
+  const toggleSkinTag = (tag: string) => {
+    setFormData((prev) => {
+      const exists = prev.featuredSkins.includes(tag);
+      return {
+        ...prev,
+        featuredSkins: exists 
+          ? prev.featuredSkins.filter((s) => s !== tag)
+          : [...prev.featuredSkins, tag]
+      };
+    });
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    if (screenshots.length + files.length > 8) {
-      setError("You can upload a maximum of 8 account screenshots.");
+    if (screenshots.length + files.length > 15) {
+      setError("You can upload a maximum of 15 account screenshots.");
       return;
     }
 
@@ -89,7 +117,6 @@ export default function CreateListingModal({
     setPreviewUrls(updatedPreviews);
   };
 
-  // Step Validation logic before moving forward
   const handleNextStep = () => {
     setError("");
 
@@ -108,8 +135,11 @@ export default function CreateListingModal({
     if (currentStep === 3) {
       if (!formData.accountEmail.trim()) return setError("Moonton / Main account email is required.");
       if (!formData.accountPassword.trim()) return setError("Main account password is required.");
+      if (!formData.unboundConfirmation) {
+        return setError("You must check and confirm that all social accounts (VK, FB, TikTok) are unlinked before proceeding.");
+      }
       if (formData.has2FA === "Yes" && !formData.twoFactorDetails.trim()) {
-        setError("Please explain how 2nd verification / 2FA will be handed over to the buyer.");
+        setError("Please explain how 2FA codes will be delivered to the buyer.");
         return;
       }
     }
@@ -122,27 +152,100 @@ export default function CreateListingModal({
     setCurrentStep((prev) => prev - 1);
   };
 
+  // Cloudinary Upload
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const data = new FormData();
+    data.append("file", file);
+    data.append("upload_preset", "assetxtack_preset");
+
+    const res = await fetch(
+      "https://api.cloudinary.com/v1_1/vqwtykcl/image/upload",
+      {
+        method: "POST",
+        body: data,
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error("Failed to upload screenshot to Cloudinary. Check your upload preset name.");
+    }
+
+    const fileData = await res.json();
+    return fileData.secure_url;
+  };
+
+  // Prevent Duplicate Submission with Loading Locks
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return; // Guard against duplicate button taps
+
     setError("");
     setLoading(true);
 
     try {
-      const finalData = {
-        ...formData,
-        calculatedShieldFee,
-        screenshots,
-      };
+      const currentUser = auth.currentUser;
 
-      if (onSuccess) {
-        onSuccess(finalData);
+      const uploadedImageUrls: string[] = [];
+      if (screenshots.length > 0) {
+        for (let i = 0; i < screenshots.length; i++) {
+          const url = await uploadToCloudinary(screenshots[i]);
+          uploadedImageUrls.push(url);
+        }
       }
 
+      const payload = {
+        title: formData.title,
+        rank: formData.rank,
+        skinsCount: Number(formData.skinsCount),
+        heroesCount: Number(formData.heroesCount),
+        winRate: formData.winRate || "N/A",
+        price: Number(formData.price),
+        calculatedFee,
+        netPayout,
+        feePercentage,
+        loginMethod: formData.loginMethod,
+        description: formData.description,
+        featuredSkins: formData.featuredSkins,
+        isFeatured: isFeaturedBoost,
+        hasShieldProtection: isFeaturedBoost,
+        listingPlan: formData.listingPlan,
+        sellerId: currentUser?.uid || "anonymous_seller",
+        sellerName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Seller",
+        sellerVerified: isVerifiedSeller,
+        sellerRating: 5.0,
+        status: "Active",
+        images: uploadedImageUrls,
+        createdAt: serverTimestamp(),
+        
+        // Social Media Unbind Certifications
+        moontonStatus: formData.moontonStatus,
+        vkBoundStatus: formData.vkBoundStatus,
+        facebookBoundStatus: formData.facebookBoundStatus,
+        tiktokBoundStatus: formData.tiktokBoundStatus,
+        googlePlayStatus: formData.googlePlayStatus,
+        appleIdStatus: formData.appleIdStatus,
+
+        // Handover Security Credentials
+        accountEmail: formData.accountEmail,
+        accountPassword: formData.accountPassword,
+        secondaryPassword: formData.secondaryPassword,
+        has2FA: formData.has2FA,
+        twoFactorDetails: formData.twoFactorDetails,
+      };
+
+      const docRef = await addDoc(collection(db, "listings"), payload);
+      const newId = docRef.id;
+
+      if (onSuccess) {
+        onSuccess(payload, newId);
+      }
+
+      setCreatedId(newId);
       setLoading(false);
       setIsSuccessModalOpen(true);
     } catch (err) {
       console.error("Error creating listing:", err);
-      setError("Failed to create listing. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to create listing. Please try again.");
       setLoading(false);
     }
   };
@@ -152,11 +255,18 @@ export default function CreateListingModal({
     onClose();
   };
 
+  const handleViewListing = () => {
+    if (onViewListing && createdId) {
+      onViewListing(createdId);
+    } else {
+      handleFinish();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B0E14]/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B0E14]/85 backdrop-blur-md">
       <div className="bg-[#151922] border border-[#242938] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 space-y-6 text-[#EDEFF2] shadow-2xl relative">
         
-        {/* Success Modal Screen Overlay */}
         {isSuccessModalOpen ? (
           <div className="py-8 text-center space-y-5">
             <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/10">
@@ -165,12 +275,10 @@ export default function CreateListingModal({
 
             <div className="space-y-2">
               <h3 className="text-xl font-bold font-display text-[#EDEFF2]">
-                Listing Submitted Successfully!
+                Listing Posted Successfully!
               </h3>
               <p className="text-xs text-[#8A93A3] max-w-md mx-auto leading-relaxed">
-                {isVerifiedSeller 
-                  ? "Your account details have passed automated verification and are now live on the AssetXtack marketplace."
-                  : "Your listing has been submitted for review. Our inspection team will verify the account statistics and social unbinds before publishing it live."}
+                Your account credentials and social unbind status have been logged. Your listing is now live in the AssetXtack escrow marketplace.
               </p>
             </div>
 
@@ -183,25 +291,27 @@ export default function CreateListingModal({
                 <span className="text-[#8A93A3]">Selling Price:</span>
                 <span className="font-mono font-bold text-emerald-400">₦{numericPrice.toLocaleString()}</span>
               </div>
-              {formData.enableShieldGuard && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-[#8A93A3]">AssetXtack Shield Protection (10%):</span>
-                  <span className="font-mono font-bold text-[#FFB020]">₦{calculatedShieldFee.toLocaleString()}</span>
-                </div>
-              )}
+              <div className="flex justify-between text-xs">
+                <span className="text-[#8A93A3]">Plan Fee ({feePercentage}%):</span>
+                <span className="font-mono font-bold text-rose-400">-₦{calculatedFee.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-xs pt-1 border-t border-[#242938]">
+                <span className="text-[#8A93A3] font-bold">Your Net Payout:</span>
+                <span className="font-mono font-bold text-[#FFB020]">₦{netPayout.toLocaleString()}</span>
+              </div>
             </div>
 
             <button
               type="button"
-              onClick={handleFinish}
-              className="bg-[#FFB020] hover:bg-[#e09b1c] text-[#0B0E14] font-bold text-sm px-8 py-3 rounded-xl transition-all shadow-md"
+              onClick={handleViewListing}
+              className="bg-[#FFB020] hover:bg-[#e09b1c] text-[#0B0E14] font-bold text-sm px-8 py-3 rounded-xl transition-all shadow-md cursor-pointer"
             >
-              Done & Go to Marketplace
+              View My Listing
             </button>
           </div>
         ) : (
           <>
-            {/* Header */}
+            {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-[#242938]">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-[#FFB020]/10 border border-[#FFB020]/20 text-[#FFB020] rounded-xl">
@@ -209,18 +319,18 @@ export default function CreateListingModal({
                 </div>
                 <div>
                   <h2 className="text-lg font-bold font-display">Post MLBB Account</h2>
-                  <p className="text-sm text-[#8A93A3]">Step {currentStep} of 4 — Complete all security requirements.</p>
+                  <p className="text-sm text-[#8A93A3]">Step {currentStep} of 4 — Unbind social accounts and enter details.</p>
                 </div>
               </div>
               <button 
                 onClick={onClose}
-                className="p-2 text-[#8A93A3] hover:text-[#EDEFF2] hover:bg-[#0B0E14] rounded-lg transition-colors"
+                className="p-2 text-[#8A93A3] hover:text-[#EDEFF2] hover:bg-[#0B0E14] rounded-lg transition-colors cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Step Indicator Bar */}
+            {/* Step Indicator */}
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4].map((step) => (
                 <div 
@@ -232,7 +342,7 @@ export default function CreateListingModal({
               ))}
             </div>
 
-            {/* Global Error Alert */}
+            {/* Global Error Banner */}
             {error && (
               <div className="flex items-center gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-sm text-rose-400">
                 <AlertCircle size={18} className="shrink-0" />
@@ -240,27 +350,23 @@ export default function CreateListingModal({
               </div>
             )}
 
-            {/* STEP 1: BASIC DETAILS & PRICING */}
+            {/* STEP 1: ACCOUNT STATISTICS */}
             {currentStep === 1 && (
               <div className="space-y-5">
-                {/* Step Warning & Policy */}
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 space-y-1">
-                  <div className="flex items-center gap-2 font-bold text-amber-400 text-sm">
-                    <ShieldAlert size={18} />
-                    <span>Step 1 Guidelines & Consequences</span>
+                {/* Step 1 Pre-Notice */}
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2.5">
+                  <Info size={18} className="shrink-0 text-amber-400 mt-0.5" />
+                  <div>
+                    <strong className="font-bold text-amber-400 block mb-0.5">Important Notice for Sellers:</strong>
+                    Ensure all statistics (Skins, Rank, Win Rate) match your in-game profile exactly. Mismatched stats will cause escrow buyer rejections.
                   </div>
-                  <p>
-                    Ensure all skin counts, ranks, and pricing are 100% accurate. Misrepresenting account statistics will result in listing rejection and seller score penalties.
-                  </p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                    Listing Title <span className="text-rose-400">*</span>
-                  </label>
+                  <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Listing Title *</label>
                   <input
                     type="text"
-                    placeholder="e.g. Mythical Glory — 120 Skins, All Heroes, Collector Chou"
+                    placeholder="e.g. Mythical Glory — 140 Skins, Collector Chou + KOF Gusion"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]/60 transition-all"
@@ -269,9 +375,7 @@ export default function CreateListingModal({
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                      Highest Rank <span className="text-rose-400">*</span>
-                    </label>
+                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Highest Rank *</label>
                     <select
                       value={formData.rank}
                       onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
@@ -279,6 +383,7 @@ export default function CreateListingModal({
                     >
                       <option value="Mythical Immortal">Mythical Immortal</option>
                       <option value="Mythical Glory">Mythical Glory</option>
+                      <option value="Mythical Honor">Mythical Honor</option>
                       <option value="Mythic">Mythic</option>
                       <option value="Legend">Legend</option>
                       <option value="Epic">Epic</option>
@@ -286,115 +391,112 @@ export default function CreateListingModal({
                   </div>
 
                   <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                      Skins Count <span className="text-rose-400">*</span>
-                    </label>
+                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Skins Count *</label>
                     <input
                       type="number"
                       placeholder="85"
                       value={formData.skinsCount}
                       onChange={(e) => setFormData({ ...formData, skinsCount: e.target.value })}
-                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]/60 font-mono transition-all"
+                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                      Heroes Count <span className="text-rose-400">*</span>
-                    </label>
+                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Heroes Count *</label>
                     <input
                       type="number"
                       placeholder="122"
                       value={formData.heroesCount}
                       onChange={(e) => setFormData({ ...formData, heroesCount: e.target.value })}
-                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]/60 font-mono transition-all"
+                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                      Selling Price (₦ NGN) <span className="text-rose-400">*</span>
-                    </label>
+                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Selling Price (₦ NGN) *</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-mono text-[#8A93A3]">₦</span>
                       <input
                         type="number"
-                        placeholder="35000"
+                        placeholder="45000"
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-9 pr-4 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]/60 font-mono transition-all"
+                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-9 pr-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                      Primary Bind Type <span className="text-rose-400">*</span>
-                    </label>
-                    <select
-                      value={formData.loginMethod}
-                      onChange={(e) => setFormData({ ...formData, loginMethod: e.target.value })}
-                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-3 text-sm text-[#EDEFF2] focus:outline-none focus:border-[#FFB020]/60 transition-all"
-                    >
-                      <option value="Moonton Account">Moonton Account (Clean Email)</option>
-                      <option value="VK / TikTok Unbind">VK / TikTok Unbound</option>
-                      <option value="All Unbound">All Socials Unbound (All-Clean)</option>
-                    </select>
+                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Win Rate (%)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 62.4%"
+                      value={formData.winRate}
+                      onChange={(e) => setFormData({ ...formData, winRate: e.target.value })}
+                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] transition-all"
+                    />
                   </div>
                 </div>
 
-                {/* Real-time 10% Protection Fee Preview */}
-                {numericPrice > 0 && (
-                  <div className="p-3.5 bg-[#0B0E14] border border-[#FFB020]/30 rounded-xl flex items-center justify-between text-xs">
-                    <span className="text-[#8A93A3] flex items-center gap-1.5">
-                      <Zap size={14} className="text-[#FFB020]" />
-                      Estimated AssetXtack Shield Protection Fee (10%):
-                    </span>
-                    <span className="font-mono font-bold text-[#FFB020]">
-                      ₦{calculatedShieldFee.toLocaleString()} NGN
-                    </span>
+                {/* Rare Skins Tag Select */}
+                <div>
+                  <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Rare Skin Badges</label>
+                  <div className="flex flex-wrap gap-2">
+                    {POPULAR_SKIN_TAGS.map((tag) => {
+                      const isSelected = formData.featuredSkins.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleSkinTag(tag)}
+                          className={`text-xs px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1 transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-[#7C5CFC] text-white border-[#7C5CFC]"
+                              : "bg-[#0B0E14] text-[#8A93A3] border-[#242938] hover:border-[#7C5CFC]/50"
+                          }`}
+                        >
+                          <Sparkles size={12} className={isSelected ? "text-[#FFB020]" : "text-[#8A93A3]"} />
+                          {tag}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
 
                 <div>
-                  <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                    Key Features & Notable Skins <span className="text-rose-400">*</span>
-                  </label>
+                  <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Description & Rare Effects *</label>
                   <textarea
                     rows={3}
-                    placeholder="Describe key skins (e.g. KOF Chou, Legend Gusion, Collector skins)..."
+                    placeholder="List rare skins, recall effects, and emblem levels..."
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl p-3.5 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]/60 resize-none transition-all"
+                    className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl p-3.5 text-sm text-[#EDEFF2] placeholder-[#8A93A3] resize-none transition-all"
                   />
                 </div>
               </div>
             )}
 
-            {/* STEP 2: SCREENSHOT PROOF UPLOADS */}
+            {/* STEP 2: SCREENSHOT PROOF (UP TO 15 IMAGES) */}
             {currentStep === 2 && (
               <div className="space-y-5">
-                {/* Step Warning & Policy */}
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 space-y-1">
-                  <div className="flex items-center gap-2 font-bold text-amber-400 text-sm">
-                    <ShieldAlert size={18} />
-                    <span>Screenshot Verification Policy</span>
+                {/* Step 2 Pre-Notice */}
+                <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 flex items-start gap-2.5">
+                  <Info size={18} className="shrink-0 text-blue-400 mt-0.5" />
+                  <div>
+                    <strong className="font-bold text-blue-400 block mb-0.5">Screenshot Verification Guide:</strong>
+                    Upload up to **15 screenshots** showing: Account Profile, Skin Gallery, Win Rate, Emblem Levels, and the **Account Bind Status Page**.
                   </div>
-                  <p>
-                    Upload clear, unedited screenshots of your MLBB profile, skin gallery, and account bind page. Uploading edited or stolen images leads to an <strong>immediate permanent ban</strong>.
-                  </p>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-semibold text-[#EDEFF2]">
-                    Upload Account Screenshots <span className="text-rose-400">*</span>
+                    Upload Screenshots <span className="text-rose-400">*</span>
                   </label>
-                  <span className="text-xs text-[#8A93A3]">{screenshots.length} / 8 uploaded</span>
+                  <span className="text-xs font-mono text-[#8A93A3]">{screenshots.length} / 15 uploaded</span>
                 </div>
 
-                {/* Dropzone */}
                 <div className="relative border-2 border-dashed border-[#242938] hover:border-[#FFB020]/50 rounded-xl p-6 bg-[#0B0E14]/50 text-center transition-all">
                   <input
                     type="file"
@@ -405,21 +507,20 @@ export default function CreateListingModal({
                   />
                   <Upload size={28} className="mx-auto text-[#8A93A3] mb-2" />
                   <p className="text-sm font-semibold text-[#EDEFF2]">Click or drag screenshots here</p>
-                  <p className="text-xs text-[#8A93A3] mt-1">Proof of skins, win rates, emblems, and bind status page</p>
+                  <p className="text-xs text-[#8A93A3] mt-1">PNG, JPG or WEBP (Max 15 images)</p>
                 </div>
 
-                {/* Previews */}
                 {previewUrls.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 pt-2 max-h-56 overflow-y-auto pr-1">
                     {previewUrls.map((url, idx) => (
                       <div key={idx} className="relative group rounded-xl overflow-hidden border border-[#242938] aspect-video bg-[#0B0E14]">
                         <img src={url} alt={`Proof ${idx + 1}`} className="w-full h-full object-cover" />
                         <button
                           type="button"
                           onClick={() => removeImage(idx)}
-                          className="absolute top-1 right-1 bg-rose-500/80 hover:bg-rose-600 text-white p-1 rounded-lg transition-all opacity-90"
+                          className="absolute top-1 right-1 bg-rose-500/80 hover:bg-rose-600 text-white p-1 rounded-lg transition-all cursor-pointer"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     ))}
@@ -428,51 +529,92 @@ export default function CreateListingModal({
               </div>
             )}
 
-            {/* STEP 3: FULL ACCOUNT RECOVERY PREVENTION CREDENTIALS */}
+            {/* STEP 3: SOCIAL UNBIND CHECK & CREDENTIAL HANDOVER */}
             {currentStep === 3 && (
               <div className="space-y-5">
-                {/* Severe Penalty Warning Banner */}
+                {/* Step 3 Mandatory Pre-Notice */}
                 <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 space-y-1.5">
                   <div className="flex items-center gap-2 font-bold text-rose-400 text-sm">
                     <ShieldAlert size={18} />
-                    <span>Anti-Pullback Legal Notice & Ban Policy</span>
+                    <span>MANDATORY SOCIAL UNBIND NOTICE FOR SELLERS</span>
                   </div>
                   <p className="leading-relaxed">
-                    By entering credentials below, you guarantee total ownership transfer. Attempting to recover/pull back this account through Moonton support or linked socials post-sale is a fraudulent crime. Your legal KYC identity on file will be submitted to security authorities, and earned funds will be frozen indefinitely.
+                    Before providing credentials, **ALL third-party accounts (VK, Facebook, TikTok, Google Play, Apple ID)** MUST be completely unbound from Moonton. Leaving linked social accounts will allow buyers to reject the order or trigger fraud disputes.
                   </p>
                 </div>
 
-                {/* Moonton Core Logins */}
-                <div className="space-y-4">
+                {/* Social Unbind Confirmation Grid */}
+                <div className="space-y-3 pt-1">
+                  <h4 className="text-xs font-bold text-[#FFB020] uppercase tracking-wider font-mono flex items-center gap-2">
+                    <Lock size={14} /> 1. Confirm Social Account Unbind Status
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">VKontakte (VK)</label>
+                      <select
+                        value={formData.vkBoundStatus}
+                        onChange={(e) => setFormData({ ...formData, vkBoundStatus: e.target.value })}
+                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2 text-xs text-[#EDEFF2] focus:border-[#FFB020]"
+                      >
+                        <option value="Unbound">Unbound (Clean)</option>
+                        <option value="Bound - Handing Over Login">Bound (Handing over VK email/pass)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">Facebook Account</label>
+                      <select
+                        value={formData.facebookBoundStatus}
+                        onChange={(e) => setFormData({ ...formData, facebookBoundStatus: e.target.value })}
+                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2 text-xs text-[#EDEFF2] focus:border-[#FFB020]"
+                      >
+                        <option value="Unbound">Unbound (Clean)</option>
+                        <option value="Bound - Handing Over Login">Bound (Handing over FB login)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">TikTok Account</label>
+                      <select
+                        value={formData.tiktokBoundStatus}
+                        onChange={(e) => setFormData({ ...formData, tiktokBoundStatus: e.target.value })}
+                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2 text-xs text-[#EDEFF2] focus:border-[#FFB020]"
+                      >
+                        <option value="Unbound">Unbound (Clean)</option>
+                        <option value="Bound - Handing Over Login">Bound (Handing over TikTok login)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary Credentials */}
+                <div className="space-y-3 pt-2 border-t border-[#242938]">
                   <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono flex items-center gap-2">
-                    <Key size={14} /> 1. Moonton Primary Logins
+                    <Key size={14} /> 2. Moonton Account Logins
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                        Moonton / Login Email <span className="text-rose-400">*</span>
-                      </label>
+                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Moonton Email *</label>
                       <input
                         type="email"
                         placeholder="mlbbaccount@gmail.com"
                         value={formData.accountEmail}
                         onChange={(e) => setFormData({ ...formData, accountEmail: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-emerald-500/60 transition-all"
+                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] focus:border-emerald-500"
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                        Moonton Password <span className="text-rose-400">*</span>
-                      </label>
+                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Moonton Password *</label>
                       <div className="relative">
                         <input
                           type={showPassword ? "text" : "password"}
                           placeholder="••••••••••••"
                           value={formData.accountPassword}
                           onChange={(e) => setFormData({ ...formData, accountPassword: e.target.value })}
-                          className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-4 pr-11 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-emerald-500/60 transition-all font-mono"
+                          className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-4 pr-11 py-3 text-sm text-[#EDEFF2] font-mono focus:border-emerald-500"
                         />
                         <button
                           type="button"
@@ -486,228 +628,158 @@ export default function CreateListingModal({
                   </div>
                 </div>
 
-                {/* In-Game Security & Secondary Passwords */}
-                <div className="space-y-4 pt-2 border-t border-[#242938]">
-                  <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono flex items-center gap-2">
-                    <Lock size={14} /> 2. In-Game Secondary Password & 2FA
-                  </h4>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                        In-Game Secondary Verification Password
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showSecondaryPass ? "text" : "password"}
-                          placeholder="••••••••••••"
-                          value={formData.secondaryPassword}
-                          onChange={(e) => setFormData({ ...formData, secondaryPassword: e.target.value })}
-                          className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-4 pr-11 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-emerald-500/60 transition-all font-mono"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowSecondaryPass(!showSecondaryPass)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8A93A3] hover:text-[#EDEFF2]"
-                        >
-                          {showSecondaryPass ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                        Is 2-Step Verification / 2FA Enabled? <span className="text-rose-400">*</span>
-                      </label>
-                      <select
-                        value={formData.has2FA}
-                        onChange={(e) => setFormData({ ...formData, has2FA: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-3 text-sm text-[#EDEFF2] focus:outline-none focus:border-emerald-500/60 transition-all"
-                      >
-                        <option value="No">No (Clean Direct Login)</option>
-                        <option value="Yes">Yes (Requires Verification Handover)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {formData.has2FA === "Yes" && (
-                    <div>
-                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
-                        2FA Code / Transfer Instructions <span className="text-rose-400">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Provide 2FA backup codes or state if email access is included"
-                        value={formData.twoFactorDetails}
-                        onChange={(e) => setFormData({ ...formData, twoFactorDetails: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-emerald-500/60 transition-all"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Social Bind Verification (VK, TikTok, FB) */}
-                <div className="space-y-4 pt-2 border-t border-[#242938]">
-                  <div>
-                    <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono">
-                      3. Social Media Unbind Status
-                    </h4>
-                    <p className="text-[11px] text-[#8A93A3] mt-0.5">
-                      Ensure all social media accounts are unbinded before listing. Bound social accounts without transferred access will lead to listing rejection during inspection.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">VK Account</label>
-                      <select
-                        value={formData.vkBoundStatus}
-                        onChange={(e) => setFormData({ ...formData, vkBoundStatus: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2.5 text-xs text-[#EDEFF2]"
-                      >
-                        <option value="Unbound">Unbound (Removed / Clean)</option>
-                        <option value="Bound - Handing Over">Bound (Include Login)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">TikTok Account</label>
-                      <select
-                        value={formData.tiktokBoundStatus}
-                        onChange={(e) => setFormData({ ...formData, tiktokBoundStatus: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2.5 text-xs text-[#EDEFF2]"
-                      >
-                        <option value="Unbound">Unbound (Removed / Clean)</option>
-                        <option value="Bound - Handing Over">Bound (Include Login)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">Facebook Account</label>
-                      <select
-                        value={formData.facebookBoundStatus}
-                        onChange={(e) => setFormData({ ...formData, facebookBoundStatus: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2.5 text-xs text-[#EDEFF2]"
-                      >
-                        <option value="Unbound">Unbound (Removed / Clean)</option>
-                        <option value="Bound - Handing Over">Bound (Include Login)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
+                {/* Unbind Checkbox Certification */}
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-[#0B0E14] border border-[#242938] cursor-pointer hover:border-[#FFB020]/50 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={formData.unboundConfirmation}
+                    onChange={(e) => setFormData({ ...formData, unboundConfirmation: e.target.checked })}
+                    className="mt-1 rounded accent-[#FFB020] w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-xs text-[#EDEFF2] leading-relaxed">
+                    <strong>I certify that all social accounts are unbound</strong> and the buyer will have full direct access without recovery risks.
+                  </span>
+                </label>
               </div>
             )}
 
-            {/* STEP 4: ASSETXTACK SHIELD GUARD PROTECTION */}
+            {/* STEP 4: LISTING PLAN & FEATURED BOOST FEE CALCULATION */}
             {currentStep === 4 && (
               <div className="space-y-6">
-                {/* Step Explanation Banner */}
-                <div className="p-4 rounded-xl bg-[#FFB020]/10 border border-[#FFB020]/30 text-xs text-[#EDEFF2] space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-[#FFB020] text-sm">
-                    <Zap size={18} />
-                    <span>AssetXtack Shield Guard Protection</span>
-                  </div>
-                  <p className="text-[#8A93A3] leading-relaxed">
-                    Supercharge your listing visibility and buyer confidence with Shield Guard protection. Protected listings sell 3x faster with priority escrow processing.
-                  </p>
-                </div>
-
-                {/* Shield Toggle Card */}
-                <div 
-                  onClick={() => setFormData({ ...formData, enableShieldGuard: !formData.enableShieldGuard })}
-                  className={`cursor-pointer rounded-2xl border p-5 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-                    formData.enableShieldGuard 
-                      ? "border-[#FFB020] bg-[#FFB020]/10 shadow-lg shadow-[#FFB020]/5" 
-                      : "border-[#242938] bg-[#0B0E14]/60 hover:border-[#FFB020]/40"
-                  }`}
-                >
-                  <div className="flex items-start gap-3.5">
-                    <div className={`p-3 rounded-xl border ${
-                      formData.enableShieldGuard ? "bg-[#FFB020] text-[#0B0E14] border-[#FFB020]" : "bg-[#151922] text-[#FFB020] border-[#242938]"
-                    }`}>
-                      <ShieldCheck size={28} />
-                    </div>
+                {!isVerifiedSeller && (
+                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2.5">
+                    <AlertTriangle size={18} className="shrink-0 text-amber-400 mt-0.5" />
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-base font-bold text-[#EDEFF2]">Enable AssetXtack Shield Guard</h4>
-                        <span className="bg-[#FFB020]/20 text-[#FFB020] text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border border-[#FFB020]/30">
-                          Recommended
-                        </span>
-                      </div>
-                      <ul className="mt-2 space-y-1 text-xs text-[#8A93A3]">
-                        <li className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-emerald-400" /> Featured "Shield Protected" badge on marketplace card</li>
-                        <li className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-emerald-400" /> Priority top-of-page search placement</li>
-                        <li className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-emerald-400" /> Accelerated escrow payout release</li>
-                      </ul>
+                      <strong className="font-bold text-amber-400 block mb-0.5">KYC Verification Required:</strong>
+                      Complete{" "}
+                      {onVerifyKyc ? (
+                        <button
+                          type="button"
+                          onClick={onVerifyKyc}
+                          className="underline font-semibold hover:text-amber-200 transition-colors"
+                        >
+                          account verification
+                        </button>
+                      ) : (
+                        <span>account verification</span>
+                      )}
+                      {" "}to unlock Featured status and top-tier marketplace placement.
                     </div>
-                  </div>
-
-                  <div className="text-right w-full md:w-auto border-t md:border-t-0 border-[#242938] pt-3 md:pt-0">
-                    <p className="text-xs text-[#8A93A3]">Protection Fee (10%)</p>
-                    <p className="text-lg font-bold font-mono text-[#FFB020]">
-                      ₦{calculatedShieldFee.toLocaleString()} <span className="text-xs text-[#8A93A3]">/ 30 Days</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Total Cost Summary */}
-                <div className="p-4 bg-[#0B0E14] border border-[#242938] rounded-xl flex items-center justify-between text-sm">
-                  <span className="text-[#8A93A3]">Standard Listing Fee:</span>
-                  <span className="font-bold font-mono text-emerald-400">FREE</span>
-                </div>
-                {formData.enableShieldGuard && (
-                  <div className="p-4 bg-[#0B0E14] border border-[#FFB020]/30 rounded-xl flex items-center justify-between text-sm">
-                    <span className="text-[#EDEFF2] font-semibold flex items-center gap-2">
-                      <ShieldCheck size={16} className="text-[#FFB020]" /> AssetXtack Shield Fee (10%):
-                    </span>
-                    <span className="font-bold font-mono text-[#FFB020]">₦{calculatedShieldFee.toLocaleString()} NGN</span>
                   </div>
                 )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Featured Boost Option (10% Fee) */}
+                  <div
+                    onClick={() => isVerifiedSeller && setFormData({ ...formData, listingPlan: "shield" })}
+                    className={`rounded-2xl border p-5 transition-all ${
+                      !isVerifiedSeller
+                        ? "border-[#242938] bg-[#0B0E14]/60 opacity-60 cursor-not-allowed"
+                        : formData.listingPlan === "shield"
+                        ? "border-[#FFB020] bg-[#FFB020]/10 shadow-lg shadow-[#FFB020]/10"
+                        : "border-[#242938] bg-[#0B0E14]/60 hover:border-[#FFB020]/40"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <ShieldCheck size={28} className={`shrink-0 ${!isVerifiedSeller ? "text-[#8A93A3]" : "text-[#FFB020]"}`} />
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-sm font-bold text-[#EDEFF2]">Featured Boost</h4>
+                          {isVerifiedSeller && (
+                            <span className="bg-[#FFB020]/20 text-[#FFB020] text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#FFB020]/30">
+                              Recommended
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#8A93A3] mt-1">
+                          {isVerifiedSeller
+                            ? "Top listing placement + Gold animated border badge."
+                            : "Locked until KYC verification is complete."}
+                        </p>
+                        <p className="text-xs font-bold text-[#FFB020] mt-2">10% Platform Fee</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Standard Option (5% Fee) */}
+                  <div
+                    onClick={() => setFormData({ ...formData, listingPlan: "standard" })}
+                    className={`rounded-2xl border p-5 cursor-pointer transition-all ${
+                      formData.listingPlan === "standard"
+                        ? "border-[#7C5CFC] bg-[#7C5CFC]/10 shadow-lg shadow-[#7C5CFC]/10"
+                        : "border-[#242938] bg-[#0B0E14]/60 hover:border-[#7C5CFC]/40"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <FileText size={28} className="text-[#7C5CFC] shrink-0" />
+                      <div>
+                        <h4 className="text-sm font-bold text-[#EDEFF2]">Standard Plan</h4>
+                        <p className="text-xs text-[#8A93A3] mt-1">Standard marketplace placement and escrow guard.</p>
+                        <p className="text-xs font-bold text-[#7C5CFC] mt-2">5% Platform Fee</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Clear Fee Breakdown Card */}
+                <div className="bg-[#0B0E14] border border-[#242938] rounded-xl p-4 space-y-2.5 text-xs font-mono">
+                  <div className="flex justify-between text-[#8A93A3]">
+                    <span>Asking Price:</span>
+                    <span className="text-[#EDEFF2] font-bold">₦{numericPrice.toLocaleString()} NGN</span>
+                  </div>
+                  <div className="flex justify-between text-[#8A93A3]">
+                    <span>Platform Fee ({feePercentage}%):</span>
+                    <span className="text-rose-400 font-bold">-₦{calculatedFee.toLocaleString()} NGN</span>
+                  </div>
+                  <div className="pt-2 border-t border-[#242938] flex justify-between items-center text-sm font-sans">
+                    <span className="font-bold text-[#EDEFF2]">Estimated Net Payout:</span>
+                    <span className="font-mono font-black text-emerald-400 text-base">
+                      ₦{netPayout.toLocaleString()} NGN
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#8A93A3] pt-1">
+                    {isVerifiedSeller
+                      ? "Verified sellers receive instant payout processing directly to their wallet/bank account upon successful buyer delivery."
+                      : "Unverified sellers are subject to standard verification processing times before payout release."}
+                  </p>
+                </div>
               </div>
             )}
 
-            {/* STEP CONTROLS & NAVIGATION BUTTONS */}
+            {/* Modal Controls */}
             <div className="flex items-center justify-between pt-4 border-t border-[#242938]">
               {currentStep > 1 ? (
                 <button
                   type="button"
                   onClick={handlePrevStep}
-                  className="px-4 py-2.5 rounded-xl border border-[#242938] text-sm font-semibold text-[#8A93A3] hover:text-[#EDEFF2] hover:bg-[#0B0E14] transition-colors flex items-center gap-2"
+                  disabled={loading}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#242938] bg-[#0B0E14] text-[#EDEFF2] hover:bg-[#151922] text-xs font-semibold cursor-pointer disabled:opacity-50"
                 >
                   <ChevronLeft size={16} /> Back
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl border border-[#242938] text-sm font-semibold text-[#8A93A3] hover:text-[#EDEFF2] hover:bg-[#0B0E14] transition-colors"
-                >
-                  Cancel
-                </button>
-              )}
+              ) : <div />}
 
               {currentStep < 4 ? (
                 <button
                   type="button"
                   onClick={handleNextStep}
-                  className="bg-[#FFB020] hover:bg-[#e09b1c] text-[#0B0E14] font-bold text-sm px-6 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2"
+                  className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#FFB020] hover:bg-[#e09b1c] text-[#0B0E14] text-xs font-bold cursor-pointer transition-all"
                 >
-                  Continue to Step {currentStep + 1} <ChevronRight size={16} />
+                  Next Step <ChevronRight size={16} />
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="bg-[#FFB020] hover:bg-[#e09b1c] text-[#0B0E14] font-bold text-sm px-7 py-3 rounded-xl transition-all shadow-md disabled:opacity-50 flex items-center gap-2"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-[#0B0E14] text-xs font-bold cursor-pointer transition-all disabled:opacity-50 shadow-md shadow-emerald-500/20"
                 >
-                  {loading ? "Publishing to Escrow..." : "Confirm & Publish Listing"}
+                  {loading ? "Submitting..." : "Complete & Submit Listing"}
                 </button>
               )}
             </div>
           </>
         )}
-
       </div>
     </div>
   );
