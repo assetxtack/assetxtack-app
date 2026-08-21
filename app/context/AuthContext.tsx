@@ -43,42 +43,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let unsubscribeFirestore: (() => void) | null = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (authUser) => {
-      if (!authUser) {
+    const unsubscribeAuth = onAuthStateChanged(
+      auth,
+      async (authUser) => {
+        if (!authUser) {
+          setUser(null);
+          setLoading(false);
+          if (unsubscribeFirestore) unsubscribeFirestore();
+          return;
+        }
+
+        try {
+          await syncUserToFirestore(authUser);
+        } catch (error) {
+          console.error("Failed to sync user to Firestore:", error);
+        }
+
+        const userDocRef = doc(db, "users", authUser.uid);
+        unsubscribeFirestore = onSnapshot(
+          userDocRef,
+          (docSnap) => {
+            const profileData = docSnap.exists() ? docSnap.data() : {};
+
+            setUser({
+              ...authUser,
+              isVerified: Boolean(profileData.sellerVerified || profileData.isVerified),
+              kycStatus: profileData.kycStatus || "none",
+              username: profileData.username || authUser.displayName || "",
+            } as AppUser);
+
+            setLoading(false);
+          },
+          (error) => {
+            console.error("Error fetching user profile from Firestore:", error);
+            setUser(authUser as AppUser);
+            setLoading(false);
+          }
+        );
+      },
+      (authError) => {
+        console.error("Auth state listener error:", authError);
         setUser(null);
         setLoading(false);
         if (unsubscribeFirestore) unsubscribeFirestore();
-        return;
       }
-
-      try {
-        await syncUserToFirestore(authUser);
-      } catch (error) {
-        console.error("Failed to sync user to Firestore:", error);
-      }
-
-      const userDocRef = doc(db, "users", authUser.uid);
-      unsubscribeFirestore = onSnapshot(
-        userDocRef,
-        (docSnap) => {
-          const profileData = docSnap.exists() ? docSnap.data() : {};
-
-          setUser({
-            ...authUser,
-            isVerified: Boolean(profileData.sellerVerified || profileData.isVerified),
-            kycStatus: profileData.kycStatus || "none",
-            username: profileData.username || authUser.displayName || "",
-          } as AppUser);
-
-          setLoading(false);
-        },
-        (error) => {
-          console.error("Error fetching user profile from Firestore:", error);
-          setUser(authUser as AppUser);
-          setLoading(false);
-        }
-      );
-    });
+    );
 
     return () => {
       unsubscribeAuth();

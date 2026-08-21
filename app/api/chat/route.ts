@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { sendNotification } from "@/lib/notifications";
 
 export async function GET(request: Request) {
   try {
@@ -58,6 +59,24 @@ export async function POST(request: Request) {
       isRedacted: Boolean(isRedacted),
       createdAt: new Date(),
     });
+
+    if (!isSystemMessage && orderId) {
+      const orderSnap = await adminDb.collection("orders").doc(orderId).get();
+      const orderData = orderSnap.data() as Record<string, unknown> | undefined;
+      const buyerId = String(orderData?.buyerId || "");
+      const sellerId = String(orderData?.sellerId || "");
+      const recipientId = senderId === buyerId ? sellerId : buyerId;
+
+      if (recipientId && recipientId !== senderId) {
+        await sendNotification({
+          userId: recipientId,
+          orderId,
+          title: `New message on order #${orderId.slice(0, 6)}`,
+          message: `${senderName || "User"}: "${String(text).slice(0, 40)}${String(text).length > 40 ? "..." : ""}"`,
+          type: "CHAT",
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,

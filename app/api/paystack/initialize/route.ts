@@ -48,9 +48,17 @@ export async function POST(request: Request) {
     const cappedFee = Math.min(gatewayFee, 2000);
     const totalAmount = accountPrice + Math.round(cappedFee);
 
-    const secretKey = process.env.PAYSTACK_SECRET_KEY;
+    const rawSecretKey = process.env.PAYSTACK_SECRET_KEY;
+    const secretKey = rawSecretKey ? rawSecretKey.trim() : "";
     if (!secretKey) {
       return NextResponse.json({ error: "Payment gateway not configured" }, { status: 500 });
+    }
+
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const merchantEmail = String(listingData.sellerEmail || listingData.email || "").trim().toLowerCase();
+
+    if (normalizedEmail && merchantEmail && normalizedEmail === merchantEmail) {
+      return NextResponse.json({ success: false, error: "You cannot make a payment to your own listing." }, { status: 403 });
     }
 
     const response = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -84,8 +92,8 @@ export async function POST(request: Request) {
     const paystackStatus = data.status === true;
     if (!response.ok || !paystackStatus) {
       const paystackMessage = (data as { message?: string }).message || "Failed to initialize payment";
-      console.error("Paystack initialization error:", paystackMessage, data);
-      return NextResponse.json({ error: paystackMessage }, { status: response.status || 400 });
+      console.error("Paystack initialization error:", paystackMessage, "Full Paystack response:", data);
+      return NextResponse.json({ success: false, error: paystackMessage }, { status: response.status || 400 });
     }
 
     const dataInner = data.data as Record<string, unknown> | undefined;

@@ -70,6 +70,7 @@ type Listing = {
   sellerId?: string;
   sellerVerified?: boolean;
   hasShieldProtection?: boolean;
+  listingPlan?: string;
   sellerRating?: string | number;
   rank?: string;
   skins?: number;
@@ -253,26 +254,27 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
               const createResponse = await fetch("/api/orders/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  listingId: listing.id,
-                  title: listing.title,
-                  amount: listing.price,
-                  sellerName,
-                  sellerId: listing.sellerId,
-                  sellerVerified: listing.sellerVerified ?? false,
-                  hasShieldProtection: listing.hasShieldProtection ?? listing.sellerVerified ?? false,
-                  buyerId: user.uid,
-                  rank: listing.rank,
-                  skinsCount: listing.skins ?? listing.skinsCount ?? 0,
-                  paymentReference: reference,
-                }),
+              body: JSON.stringify({
+                listingId: listing.id,
+                title: listing.title,
+                amount: listing.price,
+                sellerName,
+                sellerId: listing.sellerId,
+                sellerVerified: listing.sellerVerified ?? false,
+                hasShieldProtection: listing.hasShieldProtection ?? listing.sellerVerified ?? false,
+                listingPlan: listing.listingPlan || (listing.hasShieldProtection ? "shield" : "standard"),
+                buyerId: user.uid,
+                rank: listing.rank,
+                skinsCount: listing.skins ?? listing.skinsCount ?? 0,
+                paymentReference: reference,
+              }),
               });
 
               const createData = await createResponse.json();
 
               if (!createResponse.ok || !createData.success) {
                 const errorMsg = createData.error || createData.details || "Failed to create order";
-                console.error("Order creation failed:", createData);
+                console.error("Order creation failed. API error:", createData.error, "Full response:", createData);
                 throw new Error(errorMsg);
               }
 

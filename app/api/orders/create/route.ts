@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { sendNotification } from "@/lib/notifications";
+import { recordWalletTransaction } from "@/lib/wallet";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
@@ -12,6 +16,7 @@ export async function POST(request: Request) {
       sellerId,
       sellerVerified,
       hasShieldProtection,
+      listingPlan,
       buyerId,
       rank,
       skinsCount,
@@ -20,17 +25,24 @@ export async function POST(request: Request) {
 
     console.log("Order creation request:", { listingId, title, amount, buyerId, sellerId, paymentReference });
 
-    if (!listingId || !title || !amount || !buyerId || !sellerId || !paymentReference) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const requiredFields: Record<string, unknown> = { listingId, title, amount, buyerId, sellerId, paymentReference };
+    for (const [fieldName, fieldValue] of Object.entries(requiredFields)) {
+      if (!fieldValue || (typeof fieldValue === "string" && !fieldValue.trim())) {
+        return NextResponse.json({ success: false, error: `Missing required field: ${fieldName}` }, { status: 400 });
+      }
     }
 
     const adminDb = getAdminFirestore();
     if (!adminDb) {
       console.error("Admin Firestore not initialized");
-      return NextResponse.json({ error: "Database not available" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "Database not available" }, { status: 500 });
     }
 
-    const orderRef = await adminDb.collection("orders").add({
+    const ordersRef = adminDb.collection("orders");
+    const listingsRef = adminDb.collection("listings");
+    const chatsRef = adminDb.collection("chats");
+
+    const orderRef = await ordersRef.add({
       listingId,
       title,
       amount,
@@ -38,6 +50,7 @@ export async function POST(request: Request) {
       sellerId,
       sellerVerified: Boolean(sellerVerified),
       hasShieldProtection: Boolean(hasShieldProtection),
+      listingPlan: listingPlan || (Boolean(hasShieldProtection) ? "shield" : "standard"),
       buyerId,
       status: "IN_ESCROW",
       rank: rank || "",
@@ -47,9 +60,9 @@ export async function POST(request: Request) {
       createdAt: new Date(),
     });
 
-    await adminDb.collection("listings").doc(listingId).update({ status: "sold" });
+    await listingsRef.doc(listingId).update({ status: "sold" });
 
-    await adminDb.collection("chats").add({
+    await chatsRef.add({
       orderId: orderRef.id,
       senderId: "SYSTEM",
       senderName: "System Guard",
@@ -58,15 +71,24 @@ export async function POST(request: Request) {
       createdAt: new Date(),
     });
 
+    if (buyerId && amount) {
+      await recordWalletTransaction({
+        userId: buyerId,
+        orderId: orderRef.id,
+        type: "ESCROW_LOCK",
+        amount: Number(amount),
+        description: `Escrow lock for ${title || "listing"}`,
+        metadata: { listingId, sellerId, paymentReference },
+      });
+    }
+
     if (sellerId) {
-      await adminDb.collection("notifications").add({
+      await sendNotification({
         userId: sellerId,
+        orderId: orderRef.id,
         title: "Payment received",
         message: `A buyer paid for ${title || "your account listing"}. Credentials are now required.`,
         type: "ESCROW_LOCKED",
-        orderId: orderRef.id,
-        read: false,
-        createdAt: new Date(),
       });
     }
 
@@ -76,13 +98,10 @@ export async function POST(request: Request) {
       orderId: orderRef.id,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Internal server error during order creation";
     console.error("Server-side order creation error:", errorMessage, error);
     return NextResponse.json(
-      { 
-        error: "Failed to create order. Please contact support.",
-        details: errorMessage,
-      },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }

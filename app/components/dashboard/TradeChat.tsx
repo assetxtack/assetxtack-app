@@ -7,9 +7,7 @@ import {
   query, 
   where, 
   orderBy, 
-  onSnapshot, 
-  addDoc, 
-  serverTimestamp 
+  onSnapshot 
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -105,7 +103,7 @@ export default function TradeChat({
     if (!newMessage.trim() || !orderId) return;
 
     const textToSend = newMessage;
-    setNewMessage(""); // Clear input early for snappy UX
+    setNewMessage("");
 
     const { flagged, redactedText } = sanitizeMessage(textToSend);
 
@@ -117,18 +115,20 @@ export default function TradeChat({
     }
 
     try {
-      // Direct Firestore write for instant security rule evaluation
-      await addDoc(collection(db, "chats"), {
-        orderId,
-        senderId: currentUserId,
-        senderName: currentUserName,
-        text: redactedText,
-        isSystemMessage: false,
-        isRedacted: flagged,
-        createdAt: serverTimestamp(),
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          senderId: currentUserId,
+          senderName: currentUserName,
+          text: redactedText,
+          isSystemMessage: false,
+          isRedacted: flagged,
+        }),
       });
     } catch (error) {
-      console.error("Error sending message to Firestore:", error);
+      console.error("Error sending message:", error);
     }
   };
 
