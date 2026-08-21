@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { sendNotification } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   try {
@@ -44,14 +45,12 @@ export async function POST(request: Request) {
     });
 
     if (buyerId) {
-      await adminDb.collection("notifications").add({
+      await sendNotification({
         userId: buyerId,
+        orderId,
         title: "Credentials delivered",
         message: "Seller has submitted account credentials for your order. Please review and confirm.",
         type: "CREDENTIALS_DELIVERED",
-        orderId,
-        read: false,
-        createdAt: new Date(),
       });
     }
 

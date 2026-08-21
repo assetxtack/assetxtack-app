@@ -99,6 +99,7 @@ export default function OrderDashboardPage() {
           status,
           completedAt: status === "COMPLETED" ? new Date().toISOString() : undefined,
           disputedAt: status === "DISPUTED" ? new Date().toISOString() : undefined,
+          initiatorId: currentUserId,
         }),
       });
 
@@ -126,12 +127,13 @@ export default function OrderDashboardPage() {
   };
 
   const raiseDispute = () => {
-    if (window.confirm("Raise an escrow dispute? The vault will be frozen.")) {
-      void updateStatus(
-        "DISPUTED",
-        `Order disputed by ${isSeller ? "seller" : "buyer"}. Vault frozen; an AssetXtack mediator has been assigned.`
-      );
-    }
+    if (!window.confirm("Raise an escrow dispute? The vault will be frozen.")) return;
+    if (!order?.id) return;
+
+    void updateStatus(
+      "DISPUTED",
+      `Order disputed by ${isSeller ? "seller" : "buyer"}. Vault frozen; an AssetXtack mediator has been assigned.`
+    );
   };
 
   const releaseFunds = async () => {

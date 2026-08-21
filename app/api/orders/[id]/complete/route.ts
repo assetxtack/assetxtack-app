@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { sendNotification } from "@/lib/notifications";
+import { recordWalletTransaction } from "@/lib/wallet";
 
 export async function POST(request: Request) {
   try {
@@ -33,10 +35,30 @@ export async function POST(request: Request) {
     });
 
     if (sellerId && amount) {
-      const sellerRef = adminDb.collection("users").doc(sellerId);
-      await sellerRef.set({
-        walletBalance: Number(amount) || 0,
-      }, { merge: true });
+      const orderHasShield = Boolean(orderData?.hasShieldProtection);
+      const feePercentage = orderHasShield ? 0.10 : 0.05;
+      const orderAmount = Number(amount);
+      const platformFee = orderAmount * feePercentage;
+      const netPayout = orderAmount - platformFee;
+
+      await recordWalletTransaction({
+        userId: sellerId,
+        orderId,
+        type: "ESCROW_RELEASE",
+        amount: netPayout,
+        escrowAmount: orderAmount,
+        description: `Escrow release for order ${orderId.slice(0, 6)}`,
+        metadata: { buyerId, orderId, platformFee, feePercentage, grossAmount: orderAmount },
+      });
+
+      await recordWalletTransaction({
+        userId: sellerId,
+        orderId,
+        type: "PLATFORM_FEE",
+        amount: platformFee,
+        description: `Platform fee for order ${orderId.slice(0, 6)} (${orderHasShield ? "Featured" : "Standard"})`,
+        metadata: { buyerId, orderId, feePercentage, grossAmount: orderAmount },
+      });
     }
 
     await adminDb.collection("chats").add({
@@ -47,6 +69,16 @@ export async function POST(request: Request) {
       isSystemMessage: true,
       createdAt: new Date(),
     });
+
+    if (sellerId) {
+      await sendNotification({
+        userId: sellerId,
+        orderId,
+        title: "Payment Released",
+        message: "Buyer has confirmed delivery. Escrow funds have been released to your wallet.",
+        type: "ORDER_COMPLETED",
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

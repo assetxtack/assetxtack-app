@@ -37,7 +37,7 @@ export default function NotificationDropdown({ userId }: { userId: string }) {
   useEffect(() => {
     
     if (!userId) return;
-console.log("Current Logged-In User ID:", userId); // 👈 ADD HERE
+    
     const q = query(
       collection(db, "notifications"),
       where("userId", "==", userId),

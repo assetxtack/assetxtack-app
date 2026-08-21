@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { sendNotification } from "@/lib/notifications";
 
 export async function GET(request: Request) {
   try {
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { orderId, status, completedAt, disputedAt } = body;
+    const { orderId, status, completedAt, disputedAt, initiatorId } = body;
 
     if (!orderId || !status) {
       return NextResponse.json({ error: "orderId and status are required" }, { status: 400 });
@@ -47,6 +48,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Database not available" }, { status: 500 });
     }
 
+    const orderRef = adminDb.collection("orders").doc(orderId);
+    const orderSnap = await orderRef.get();
+
+    if (!orderSnap.exists) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const orderData = orderSnap.data() as Record<string, unknown>;
+    const buyerId = String(orderData.buyerId || "");
+    const sellerId = String(orderData.sellerId || "");
+
     const updateData: Record<string, unknown> = { status };
     if (status === "COMPLETED" && completedAt) {
       updateData.completedAt = new Date(completedAt);
@@ -55,7 +67,41 @@ export async function PATCH(request: Request) {
       updateData.disputedAt = new Date(disputedAt);
     }
 
-    await adminDb.collection("orders").doc(orderId).update(updateData);
+    await orderRef.update(updateData);
+
+    if (status === "COMPLETED" && sellerId) {
+      await sendNotification({
+        userId: sellerId,
+        orderId,
+        title: "Order Completed",
+        message: "Buyer confirmed delivery. Escrow funds have been released to your wallet.",
+        type: "ORDER_COMPLETED",
+      });
+    }
+
+    if (status === "DISPUTED") {
+      const oppositeParty = String(initiatorId || "") === buyerId ? sellerId : buyerId;
+
+      if (oppositeParty) {
+        await sendNotification({
+          userId: oppositeParty,
+          orderId,
+          title: `Dispute opened on order #${orderId.slice(0, 6)}`,
+          message: "A dispute has been raised. Support will review the trade details.",
+          type: "DISPUTE",
+        });
+      }
+
+      if (initiatorId) {
+        await sendNotification({
+          userId: String(initiatorId),
+          orderId,
+          title: "Dispute submitted",
+          message: `Your dispute request for order #${orderId.slice(0, 6)} is under review.`,
+          type: "DISPUTE",
+        });
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

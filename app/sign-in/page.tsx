@@ -39,10 +39,14 @@ export default function SignInPage() {
       })
       .catch((err) => {
         const error = err as { message?: string; code?: string };
+        const isNetworkError =
+          error?.message?.includes("network") ||
+          error?.message?.includes("fetch") ||
+          error?.code === "auth/network-request-failed";
         const isStorageError = error?.message?.includes("Database") || error.code === "auth/internal-error";
         const isUserClosed = error.code === "auth/popup-closed-by-user";
 
-        if (!isStorageError && !isUserClosed) {
+        if (!isNetworkError && !isStorageError && !isUserClosed) {
           setError(error.message || "Google sign-in failed. Please try again.");
         }
       });
@@ -121,10 +125,14 @@ export default function SignInPage() {
       }
     } catch (err) {
       const error = err as { message?: string; code?: string };
+      const isNetworkError =
+        error?.message?.includes("network") ||
+        error?.message?.includes("fetch") ||
+        error?.code === "auth/network-request-failed";
       const isStorageError = error?.message?.includes("Database") || error.code === "auth/internal-error";
       const isUserClosed = error.code === "auth/popup-closed-by-user";
 
-      if (!isStorageError && !isUserClosed) {
+      if (!isNetworkError && !isStorageError && !isUserClosed) {
         setError(error.message || "Failed to sign in with Google.");
       }
     } finally {
