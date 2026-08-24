@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { sendNotification } from "@/lib/notifications";
+import { recordWalletTransaction } from "@/lib/wallet";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
@@ -70,6 +73,34 @@ export async function PATCH(request: Request) {
     await orderRef.update(updateData);
 
     if (status === "COMPLETED" && sellerId) {
+      const orderAmount = Number(orderData.amount || 0);
+      const listingPlan = String(orderData.listingPlan || "");
+      const orderHasShield = Boolean(orderData.hasShieldProtection);
+      const feePercentage = (listingPlan === "shield" || listingPlan === "featured" || orderHasShield) ? 0.10 : 0.05;
+      const platformFee = Math.round(orderAmount * feePercentage);
+      const sellerPayout = orderAmount - platformFee;
+
+      if (orderAmount > 0) {
+        await recordWalletTransaction({
+          userId: sellerId,
+          orderId,
+          type: "ESCROW_RELEASE",
+          amount: sellerPayout,
+          escrowAmount: orderAmount,
+          description: `Escrow release for order ${orderId.slice(0, 6)}`,
+          metadata: { buyerId, orderId, platformFee, feePercentage, grossAmount: orderAmount },
+        });
+
+        await recordWalletTransaction({
+          userId: sellerId,
+          orderId,
+          type: "PLATFORM_FEE",
+          amount: platformFee,
+          description: `Platform fee for order ${orderId.slice(0, 6)} (${orderHasShield ? "Featured" : "Standard"})`,
+          metadata: { buyerId, orderId, feePercentage, grossAmount: orderAmount },
+        });
+      }
+
       await sendNotification({
         userId: sellerId,
         orderId,

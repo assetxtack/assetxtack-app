@@ -71,9 +71,9 @@ export async function POST(request: Request) {
       createdAt: new Date(),
     });
 
-    if (buyerId && amount) {
+    if (sellerId && amount) {
       await recordWalletTransaction({
-        userId: buyerId,
+        userId: sellerId,
         orderId: orderRef.id,
         type: "ESCROW_LOCK",
         amount: Number(amount),

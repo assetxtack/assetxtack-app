@@ -291,7 +291,7 @@ export default function WalletPage() {
     }
 
     const amount = Number(withdrawAmount);
-    if (amount <= 0 || amount > walletBalance) {
+    if (amount <= 0 || walletBalance <= 0 || amount > walletBalance) {
       alert("Invalid withdrawal amount or insufficient balance.");
       return;
     }
@@ -474,7 +474,7 @@ export default function WalletPage() {
 
               <button
                 onClick={handleWithdraw}
-                disabled={withdrawing || !withdrawAmount || Number(withdrawAmount) > walletBalance}
+                disabled={withdrawing || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > walletBalance || walletBalance <= 0}
                 className="w-full bg-[#FFB020] hover:bg-[#e09b1c] text-[#0B0E14] font-bold text-xs py-3 rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {withdrawing ? "Processing Request..." : "Request Withdrawal"}
