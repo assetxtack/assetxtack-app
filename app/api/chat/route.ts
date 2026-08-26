@@ -50,6 +50,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Database not available" }, { status: 500 });
     }
 
+    const orderSnap = await adminDb.collection("orders").doc(orderId).get();
+    const orderData = orderSnap.exists ? (orderSnap.data() as Record<string, unknown>) : null;
+    const buyerId = String(orderData?.buyerId || "");
+    const sellerId = String(orderData?.sellerId || "");
+
     const messageRef = await adminDb.collection("chats").add({
       orderId,
       senderId,
@@ -57,14 +62,12 @@ export async function POST(request: Request) {
       text,
       isSystemMessage: Boolean(isSystemMessage),
       isRedacted: Boolean(isRedacted),
+      buyerId,
+      sellerId,
       createdAt: new Date(),
     });
 
     if (!isSystemMessage && orderId) {
-      const orderSnap = await adminDb.collection("orders").doc(orderId).get();
-      const orderData = orderSnap.data() as Record<string, unknown> | undefined;
-      const buyerId = String(orderData?.buyerId || "");
-      const sellerId = String(orderData?.sellerId || "");
       const recipientId = senderId === buyerId ? sellerId : buyerId;
 
       if (recipientId && recipientId !== senderId) {

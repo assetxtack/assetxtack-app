@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, setDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 
 export async function POST(request: Request) {
   try {
@@ -15,26 +14,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Payment gateway not configured" }, { status: 500 });
     }
 
-    const userDocRef = doc(db, "users", sellerId);
-    const userDoc = await getDoc(userDocRef);
-    
-    if (!userDoc.exists()) {
+    const adminDb = getAdminFirestore();
+    if (!adminDb) {
+      return NextResponse.json({ error: "Database not available" }, { status: 500 });
+    }
+
+    const userDocRef = adminDb.collection("users").doc(sellerId);
+    const userDoc = await userDocRef.get();
+
+    if (!userDoc.exists) {
       return NextResponse.json({ error: "Seller account not found" }, { status: 404 });
     }
 
     const userData = userDoc.data();
-    const bankName = userData.bankName || userData.bank_code;
-    const accountNumber = userData.accountNumber;
-    const accountName = userData.accountName;
+    const bankName = userData?.bankName || userData?.bank_code;
+    const accountNumber = userData?.accountNumber;
+    const accountName = userData?.accountName;
 
     if (!bankName || !accountNumber || !accountName) {
       return NextResponse.json({ error: "Seller has not added a payout bank account" }, { status: 400 });
     }
 
-    const transfersRef = collection(db, "transfers");
-    const q = query(transfersRef, where("orderId", "==", orderId), where("sellerId", "==", sellerId));
-    const existingTransfers = await getDocs(q);
-    
+    const existingTransfers = await adminDb
+      .collection("transfers")
+      .where("orderId", "==", orderId)
+      .where("sellerId", "==", sellerId)
+      .get();
+
     if (!existingTransfers.empty) {
       return NextResponse.json({ error: "Transfer already initiated for this order" }, { status: 400 });
     }
@@ -66,8 +72,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: transferData.message || "Transfer failed" }, { status: transferResponse.status });
     }
 
-    const transferRef = doc(collection(db, "transfers"), transferData.data.reference);
-    await setDoc(transferRef, {
+    const transferRef = adminDb.collection("transfers").doc(transferData.data.reference);
+    await transferRef.set({
       orderId,
       sellerId,
       amount,
@@ -75,7 +81,7 @@ export async function POST(request: Request) {
       reference: transferData.data.reference,
       transferCode: transferData.data.transfer_code,
       recipient: transferData.data.recipient,
-      createdAt: serverTimestamp(),
+      createdAt: new Date(),
     });
 
     return NextResponse.json({

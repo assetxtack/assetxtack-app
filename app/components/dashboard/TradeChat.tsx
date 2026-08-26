@@ -19,6 +19,8 @@ interface Message {
   text: string;
   isSystemMessage: boolean;
   isRedacted?: boolean;
+  buyerId?: string;
+  sellerId?: string;
   createdAt: unknown;
 }
 

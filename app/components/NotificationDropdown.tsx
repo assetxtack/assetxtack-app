@@ -50,6 +50,8 @@ export default function NotificationDropdown({ userId }: { userId: string }) {
         ...doc.data(),
       })) as Notification[];
       setNotifications(docs);
+    }, (error) => {
+      console.error("Error fetching notifications:", error);
     });
 
     return () => unsubscribe();

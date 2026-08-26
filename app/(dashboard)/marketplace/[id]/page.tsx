@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState, useRef } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../../components/AuthGuard";
@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../../context/AuthContext";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { initializePaystackTransaction } from "@/lib/paystack";
 
 function XMark({ size = 22 }: { size?: number }) {
@@ -91,6 +91,7 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
   const { user } = useAuth();
   const resolvedParams = use(params);
   const [listing, setListing] = useState<Listing | null>(null);
+  const [sellerRating, setSellerRating] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "binds" | "gallery">("overview");
@@ -119,14 +120,37 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
         setLoading(false);
         return;
       }
-      setListing({ id: snapshot.id, ...(snapshot.data() as Omit<Listing, "id">) });
+      const data = snapshot.data() as Omit<Listing, "id">;
+      setListing({ id: snapshot.id, ...data });
       setLoading(false);
-    }, () => {
+    }, (error) => {
+      console.error("Error fetching listing:", error);
       setNotFound(true);
       setLoading(false);
     });
+
     return () => unsubscribe();
   }, [resolvedParams?.id]);
+
+  useEffect(() => {
+    if (!listing?.sellerId) return;
+    const q = query(collection(db, "reviews"), where("sellerId", "==", listing.sellerId));
+    const unsubReviews = onSnapshot(q, (snap) => {
+      const reviews = snap.docs.map((d) => d.data());
+      if (reviews.length > 0) {
+        const total = reviews.reduce((sum, r) => sum + Number((r as { rating?: number }).rating || 0), 0);
+        setSellerRating(Number((total / reviews.length).toFixed(1)));
+      } else {
+        setSellerRating(null);
+      }
+    }, (err) => {
+      console.error("Error fetching seller reviews:", err);
+    });
+
+    return () => {
+      unsubReviews();
+    };
+  }, [listing?.sellerId]);
 
   useEffect(() => {
     return () => {
@@ -430,7 +454,9 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#8A93A3]">Seller</span>
-                    <span className="text-xs font-bold text-[#EDEFF2]">@{listing.sellerName || listing.seller || "Seller"}</span>
+                    <Link href={`/seller/${listing.sellerId}`} className="text-xs font-bold text-[#EDEFF2] hover:text-[#FFB020] transition-colors">
+                      @{listing.sellerName || listing.seller || "Seller"}
+                    </Link>
                   </div>
                   <div className="border-t border-[#242938] pt-3 space-y-2">
                     <div className="flex items-center justify-between">
@@ -567,9 +593,11 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
             <div className="bg-[#151922] border border-[#242938] p-6 rounded-2xl space-y-4">
                
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 bg-[#0B0E14] px-3 py-1.5 rounded-xl border border-[#242938]">
-                    <span className="text-xs font-bold text-[#EDEFF2]">{listing.sellerName || listing.seller || "Seller"}</span>
-                    {isProtected ? (
+                <div className="flex items-center gap-2 bg-[#0B0E14] px-3 py-1.5 rounded-xl border border-[#242938]">
+                  <Link href={`/seller/${listing.sellerId}`} className="text-xs font-bold text-[#EDEFF2] hover:text-[#FFB020] transition-colors">
+                    {listing.sellerName || listing.seller || "Seller"}
+                  </Link>
+                  {isProtected ? (
                       <CheckCircle2 size={14} className="text-emerald-400" />
                     ) : (
                       <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
@@ -577,9 +605,9 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
                       </span>
                     )}
                     <span className="text-xs text-[#8A93A3]">|</span>
-                    <div className="flex items-center gap-1 text-xs font-bold text-[#FFB020]">
-                      <Star size={12} fill="#FFB020" /> {listing.sellerRating || "5.0"}
-                    </div>
+                     <div className="flex items-center gap-1 text-xs font-bold text-[#FFB020]">
+                       <Star size={12} fill="#FFB020" /> {sellerRating !== null ? sellerRating.toFixed(1) : (listing.sellerRating || "5.0")}
+                     </div>
                   </div>
                 </div>
 
@@ -878,7 +906,7 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
                     <span className="flex items-center gap-1.5">
                       <UserCheck size={14} className="text-[#FFB020]" /> Rating
                     </span>
-                    <strong className="text-[#EDEFF2]">{listing.sellerRating || "5.0"} / 5.0</strong>
+                     <strong className="text-[#EDEFF2]">{sellerRating !== null ? sellerRating.toFixed(1) : (listing.sellerRating || "5.0")} / 5.0</strong>
                   </div>
                   <div className="flex items-center justify-between text-xs text-[#8A93A3]">
                     <span className="flex items-center gap-1.5">

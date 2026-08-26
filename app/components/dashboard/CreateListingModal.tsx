@@ -6,7 +6,6 @@ import {
   Trash2, ChevronRight, ChevronLeft, ShieldAlert, Zap, Lock, CheckCircle2, FileText, Sparkles, Info, AlertTriangle
 } from "lucide-react";
 import { db, auth } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 interface CreateListingModalProps {
   isOpen: boolean;
@@ -213,10 +212,8 @@ export default function CreateListingModal({
         sellerName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Seller",
         sellerVerified: isVerifiedSeller,
         sellerRating: 5.0,
-        status: "Active",
         images: uploadedImageUrls,
-        createdAt: serverTimestamp(),
-        
+
         // Social Media Unbind Certifications
         moontonStatus: formData.moontonStatus,
         vkBoundStatus: formData.vkBoundStatus,
@@ -233,8 +230,19 @@ export default function CreateListingModal({
         twoFactorDetails: formData.twoFactorDetails,
       };
 
-      const docRef = await addDoc(collection(db, "listings"), payload);
-      const newId = docRef.id;
+      const res = await fetch("/api/listings/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to create listing");
+      }
+
+      const newId = data.listingId;
 
       if (onSuccess) {
         onSuccess(payload, newId);

@@ -209,8 +209,8 @@ export default function SellerKycModal({ isOpen, onClose, onSuccess, onSkip }: S
     try {
       const userId = auth.currentUser?.uid || "USER_DEFAULT";
       await setDoc(doc(db, "users", userId), {
-        kycStatus: "UNVERIFIED",
-        sellerVerified: false,
+        kycSkipped: true,
+        kycSkippedAt: new Date().toISOString(),
       }, { merge: true });
     } catch (err) {
       console.error("Skip error:", err);

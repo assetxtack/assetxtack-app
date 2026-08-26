@@ -11,20 +11,21 @@ import KycReminderModal from "@/app/components/dashboard/KycReminderModal";
 import SellerKycModal from "@/app/components/SellerKycModal";
 import { db } from "@/lib/firebase";
 import { 
-  collection, query, where, onSnapshot, addDoc, 
-  deleteDoc, doc, serverTimestamp 
+  collection, query, where, onSnapshot, 
+  deleteDoc, doc 
 } from "firebase/firestore";
 
 export default function MyListingsPage() {
   const { user } = useAuth();
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isKycReminderOpen, setIsKycReminderOpen] = useState(false);
   const [isSellerKycOpen, setIsSellerKycOpen] = useState(false);
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, setListings] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Active");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sellerRating, setSellerRating] = useState<number | null>(null);
 
   // Live Firestore listener for real-time user KYC verification status
   useEffect(() => {
@@ -35,6 +36,8 @@ export default function MyListingsPage() {
       if (docSnap.exists()) {
         setUserData(docSnap.data());
       }
+    }, (error) => {
+      console.error("Error fetching user profile:", error);
     });
 
     return () => unsubscribeUser();
@@ -43,7 +46,7 @@ export default function MyListingsPage() {
   const isVerifiedSeller = 
     userData?.kycStatus === "VERIFIED" || 
     userData?.sellerVerified === true || 
-    (user as any)?.isVerified || 
+    (user as unknown as Record<string, unknown>)?.isVerified || 
     false;
 
   // Real-time listener for current user's listings
@@ -62,8 +65,28 @@ export default function MyListingsPage() {
       }));
       setListings(docs);
       setLoading(false);
+    }, (error) => {
+      console.error("Error fetching listings:", error);
+      setLoading(false);
     });
 
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const q = query(collection(db, "reviews"), where("sellerId", "==", user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+       const reviews = snapshot.docs.map((d) => d.data() as Record<string, unknown>);
+       if (reviews.length > 0) {
+         const total = reviews.reduce((sum, r) => sum + Number((r as { rating?: number }).rating || 0), 0);
+        setSellerRating(Number((total / reviews.length).toFixed(1)));
+      } else {
+        setSellerRating(null);
+      }
+    }, (err) => {
+      console.error("Error fetching seller reviews:", err);
+    });
     return () => unsubscribe();
   }, [user?.uid]);
 
@@ -86,7 +109,7 @@ export default function MyListingsPage() {
   };
 
   // Add new listing to Firestore with skin tags & featured boost
-  const handleAddListing = async (newListingData: any) => {
+  const handleAddListing = async (newListingData: Record<string, unknown>) => {
     if (!user?.uid) return;
 
     try {
@@ -94,7 +117,7 @@ export default function MyListingsPage() {
       const isFeatured = Boolean(newListingData.isFeatured);
       const featureBoostFee = isFeatured ? Math.round(numericPrice * 0.05) : 0;
       
-      await addDoc(collection(db, "listings"), {
+      const payload = {
         title: newListingData.title,
         rank: newListingData.rank,
         skinsCount: Number(newListingData.skinsCount),
@@ -102,17 +125,23 @@ export default function MyListingsPage() {
         winRate: newListingData.winRate || "N/A",
         featuredSkins: newListingData.featuredSkins || [],
         price: numericPrice,
-        status: "Active",
-        views: 0,
-        sellerId: user.uid,
-        sellerName: user.displayName || user.email?.split("@")[0] || "Anonymous",
-        sellerAvatar: user.photoURL || null,
-        sellerVerified: isVerifiedSeller,
         isFeatured,
         featureBoostFee,
-        hasShieldHandover: true, // Standard verified handover process flag
-        createdAt: serverTimestamp(),
+        hasShieldHandover: true,
+        sellerId: user.uid,
+        sellerName: user.displayName || user.email?.split("@")[0] || "Anonymous",
+        sellerVerified: isVerifiedSeller,
+      };
+
+      const res = await fetch("/api/listings/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to create listing");
+      }
     } catch (error) {
       console.error("Error creating listing in Firestore:", error);
     }
@@ -275,41 +304,45 @@ export default function MyListingsPage() {
                  key={item.id} 
                  className="bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/40 rounded-2xl flex flex-col justify-between gap-5 transition-all group hover:shadow-lg overflow-hidden"
                >
-                 {/* Listing Image */}
-                 <div className="relative w-full h-40 bg-[#151922] border-b border-[#242938] overflow-hidden">
-                   <img
-                     src={item.images?.[0] || item.imageUrl || "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80"}
-                     alt={item.title || "Listing"}
-                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                   />
-                   <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E14]/80 to-transparent" />
-                 </div>
-
-                 <div className="space-y-3 p-5">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-mono font-bold text-[#FFB020] bg-[#FFB020]/10 px-3 py-1 rounded-lg border border-[#FFB020]/20">
-                        {item.id.slice(0, 8)}
-                      </span>
-                      <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
-                        {item.status}
-                      </span>
-                      {item.isFeatured && (
-                        <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30 flex items-center gap-1">
-                          <Zap size={12} className="fill-amber-300" /> Featured Boost
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-xs text-[#8A93A3]">
-                      <Eye size={14} />
-                      <span className="font-mono">{item.views || 0} views</span>
-                    </div>
+                  {/* Listing Image */}
+                  <div className="relative w-full h-40 bg-[#151922] border-b border-[#242938] overflow-hidden">
+                    <img
+                      src={item.images?.[0] || item.imageUrl || "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80"}
+                      alt={item.title || "Listing"}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E14]/80 to-transparent" />
                   </div>
 
-                  <h3 className="text-base font-bold text-[#EDEFF2] group-hover:text-[#FFB020] transition-colors leading-snug">
-                    {item.title}
-                  </h3>
+                  <div className="space-y-3 p-5">
+                   <div className="flex items-center justify-between flex-wrap gap-2">
+                     <div className="flex items-center gap-2 flex-wrap">
+                       <span className="text-xs font-mono font-bold text-[#FFB020] bg-[#FFB020]/10 px-3 py-1 rounded-lg border border-[#FFB020]/20">
+                         {item.id.slice(0, 8)}
+                       </span>
+                       <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
+                         {item.status}
+                       </span>
+                       {item.isFeatured && (
+                         <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30 flex items-center gap-1">
+                           <Zap size={12} className="fill-amber-300" /> Featured Boost
+                         </span>
+                       )}
+                     </div>
+
+                     <div className="flex items-center gap-1.5 text-xs text-[#8A93A3]">
+                       <Eye size={14} />
+                       <span className="font-mono">{item.views || 0} views</span>
+                     </div>
+                   </div>
+
+                   <h3 className="text-base font-bold text-[#EDEFF2] group-hover:text-[#FFB020] transition-colors leading-snug">
+                     {item.title}
+                   </h3>
+
+                   <div className="flex items-center gap-1 text-xs font-bold text-[#FFB020]">
+                     <Star size={12} fill="#FFB020" /> {sellerRating !== null ? sellerRating.toFixed(1) : (item.sellerRating || "5.0")}
+                   </div>
 
                   {/* Rare Skin Tags Display */}
                   {Array.isArray(item.featuredSkins) && item.featuredSkins.length > 0 && (

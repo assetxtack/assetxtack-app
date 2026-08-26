@@ -1,16 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../components/AuthGuard";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { 
-  Search, 
-  SlidersHorizontal, 
-  ShieldCheck, 
+import {
+  collection,
+  onSnapshot,
+  query,
+  where
+} from "firebase/firestore";
+import {
+  Search,
+  SlidersHorizontal,
   ShieldAlert,
-  Star, 
+  Star,
   CheckCircle2,
   AlertTriangle,
   Gamepad2,
@@ -23,6 +28,7 @@ import {
 export default function MarketplacePage() {
   const router = useRouter();
   const [listings, setListings] = useState<any[]>([]);
+  const [sellerRatings, setSellerRatings] = useState<Record<string, {sum: number, count: number}>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRank, setSelectedRank] = useState("All");
@@ -46,6 +52,25 @@ export default function MarketplacePage() {
     }, (error) => {
       console.error("Error fetching marketplace listings:", error);
       setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "reviews"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ratings: Record<string, {sum: number, count: number}> = {};
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const sid = data.sellerId as string;
+        if (!ratings[sid]) ratings[sid] = { sum: 0, count: 0 };
+        ratings[sid].sum += Number(data.rating || 0);
+        ratings[sid].count += 1;
+      });
+      setSellerRatings(ratings);
+    }, (error) => {
+      console.error("Error fetching reviews:", error);
     });
 
     return () => unsubscribe();
@@ -226,18 +251,24 @@ export default function MarketplacePage() {
                           </div>
                         )}
 
-                        <div className="flex items-center gap-1 text-[11px] font-bold text-[#FFB020]">
-                          <Star size={11} fill="#FFB020" /> {listing.sellerRating || "5.0"}
-                        </div>
+                         <div className="flex items-center gap-1 text-[11px] font-bold text-[#FFB020]">
+                           <Star size={11} fill="#FFB020" /> {(() => {
+                             const sid = listing.sellerId;
+                             if (sid && sellerRatings[sid]) {
+                               return (sellerRatings[sid].sum / sellerRatings[sid].count).toFixed(1);
+                             }
+                             return listing.sellerRating || "5.0";
+                           })()}
+                         </div>
                       </div>
 
                       {/* Seller Identity & Verification Badge */}
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-1.5 truncate max-w-[70%]">
                           <span className="text-xs font-semibold text-[#8A93A3]">Seller:</span>
-                          <span className="text-xs font-bold text-[#EDEFF2] truncate">
+                          <Link href={`/seller/${listing.sellerId}`} className="text-xs font-bold text-[#EDEFF2] truncate hover:text-[#FFB020] transition-colors">
                             {listing.sellerName || "Anonymous"}
-                          </span>
+                          </Link>
                           {!isSellerVerified && (
                             <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0">
                               Unverified Seller

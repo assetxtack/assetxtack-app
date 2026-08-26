@@ -77,6 +77,8 @@ export async function POST(request: Request) {
         senderName: "System Guard",
         text: "Buyer confirmed delivery. Escrow funds released to the seller.",
         isSystemMessage: true,
+        buyerId,
+        sellerId: sellerIdFromOrder,
         createdAt: new Date(),
       });
 

@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { AlertTriangle, CheckCircle, Clock, KeyRound, ShieldAlert, ShieldCheck, Wallet, Copy, Check } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, KeyRound, ShieldAlert, ShieldCheck, Wallet, Copy, Check, Star } from "lucide-react";
 import AuthGuard from "../../../components/AuthGuard";
 import DeliveryModal from "../../../components/dashboard/DeliveryModal";
 import TradeChat from "../../../components/dashboard/TradeChat";
-import { doc, onSnapshot } from "firebase/firestore";
+import ReviewModal from "../../../components/dashboard/ReviewModal";
+import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -17,6 +18,7 @@ type Order = {
   buyerId?: string; status?: "IN_ESCROW" | "DELIVERED" | "COMPLETED" | "DISPUTED";
   credentials?: string; credentialsSubmitted?: string;
   deliveryNotes?: string;
+  listingId?: string;
 };
 
 export default function OrderDashboardPage() {
@@ -27,6 +29,16 @@ export default function OrderDashboardPage() {
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+
+  const currentUserId = user?.uid ?? "";
+  const currentUserName = user?.displayName || user?.email?.split("@")[0] || "AssetXtack User";
+  const isBuyer = currentUserId !== "" && order?.buyerId === currentUserId;
+  const isSeller = currentUserId !== "" && order?.sellerId === currentUserId;
+  const isParticipant = isBuyer || isSeller;
+  const credentials = order?.credentialsSubmitted || order?.credentials;
+  const recipientId = isBuyer ? (order?.sellerId || "") : isSeller ? (order?.buyerId || "") : "";
 
   useEffect(() => {
     if (!orderId) return;
@@ -58,13 +70,46 @@ export default function OrderDashboardPage() {
     };
   }, [orderId]);
 
-  const currentUserId = user?.uid ?? "";
-  const currentUserName = user?.displayName || user?.email?.split("@")[0] || "AssetXtack User";
-  const isBuyer = currentUserId !== "" && order?.buyerId === currentUserId;
-  const isSeller = currentUserId !== "" && order?.sellerId === currentUserId;
-  const isParticipant = isBuyer || isSeller;
-  const credentials = order?.credentialsSubmitted || order?.credentials;
-  const recipientId = isBuyer ? (order?.sellerId || "") : isSeller ? (order?.buyerId || "") : "";
+  useEffect(() => {
+    if (!orderId || !isBuyer || order?.status !== "COMPLETED") return;
+    let cancelled = false;
+
+    const q = query(collection(db, "reviews"), where("orderId", "==", orderId));
+    const unsub = onSnapshot(q, (snap) => {
+      if (cancelled) return;
+      setHasReviewed(!snap.empty);
+    }, (err) => {
+      if (cancelled) return;
+      console.error("Error fetching reviews for order:", err);
+    });
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [orderId, isBuyer, order?.status]);
+
+  const handleReviewSubmit = async (rating: number, comment: string) => {
+    if (!order?.id || !order?.sellerId || !currentUserId) return;
+
+    const res = await fetch("/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: order.id,
+        listingId: order.listingId || order.id,
+        sellerId: order.sellerId,
+        buyerId: currentUserId,
+        rating,
+        comment,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || "Failed to submit review");
+    }
+  };
 
   const parseCredentialLine = (line: string) => {
     const [key, ...valueParts] = line.split(":");
@@ -177,6 +222,11 @@ export default function OrderDashboardPage() {
                 {isSeller && order?.status === "DELIVERED" && <button onClick={raiseDispute} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-rose-500/10 text-rose-300 border border-rose-500/30 text-xs font-semibold disabled:opacity-50">Raise Dispute</button>}
                 {isBuyer && order?.status === "DELIVERED" && <button onClick={releaseFunds} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-emerald-500 text-[#0B0E14] font-bold text-xs disabled:opacity-50">Confirm Delivery & Release Funds</button>}
                 {order?.status === "COMPLETED" && <span className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-1.5"><CheckCircle size={16} /> Completed</span>}
+                {isBuyer && order?.status === "COMPLETED" && !hasReviewed && (
+                  <button onClick={() => setShowReviewModal(true)} className="px-4 py-2 rounded-xl bg-[#FFB020] text-[#0B0E14] font-bold text-xs flex items-center gap-1.5 hover:bg-[#ffa500] transition">
+                    <Star size={14} /> Leave a Review
+                  </button>
+                )}
                 {order?.status === "DISPUTED" && <span className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-1.5"><ShieldAlert size={16} /> Escrow frozen</span>}
               </div>
             </section>
@@ -217,7 +267,7 @@ export default function OrderDashboardPage() {
                 <section className="p-5 bg-[#151922] border border-[#242938] rounded-2xl space-y-4 shadow-xl">
                   <h2 className="text-sm font-semibold text-[#EDEFF2] border-b border-[#242938] pb-3">Transaction Details</h2>
                   <div className="flex justify-between text-xs"><span className="text-[#8A93A3]">Total Escrow Amount</span><span className="font-mono font-bold text-[#EDEFF2]">₦{Number(order?.amount || 0).toLocaleString()}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-[#8A93A3]">Seller</span><span className="text-[#FFB020] font-medium">@{order?.sellerName || "Seller"}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-[#8A93A3]">Seller</span><Link href={`/seller/${order?.sellerId}`} className="text-[#FFB020] font-medium hover:underline">{order?.sellerName || "Seller"}</Link></div>
                   <div className="flex justify-between text-xs"><span className="text-[#8A93A3]">Vault Protection</span><span className="text-emerald-400 font-medium flex items-center gap-1"><Clock size={12} /> 24-Hour Hold</span></div>
                   {isSeller && order?.status === "COMPLETED" && <Link href="/wallet" className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:underline"><Wallet size={14} /> View Wallet</Link>}
                 </section>
@@ -239,6 +289,12 @@ export default function OrderDashboardPage() {
         )}
       </main>
       <DeliveryModal orderId={orderId} buyerId={order?.buyerId || ""} sellerId={order?.sellerId || ""} isOpen={isDeliveryModalOpen} onClose={() => setIsDeliveryModalOpen(false)} />
+      <ReviewModal
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        onSubmit={handleReviewSubmit}
+        sellerName={order?.sellerName}
+      />
     </AuthGuard>
   );
 }

@@ -22,7 +22,7 @@ import {
   RefreshCw
 } from "lucide-react";
 import { CldUploadWidget } from "next-cloudinary";
-import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface TicketMessage {
@@ -269,17 +269,22 @@ export default function SupportPage() {
 
     setSendingMessage(true);
     try {
-      await addDoc(collection(db, "supportTickets", selectedTicketId, "messages"), {
-        senderId: currentUserId,
-        senderName: user?.displayName || user?.email?.split("@")[0] || "User",
-        text: newMessage.trim(),
-        isAdmin: false,
-        createdAt: serverTimestamp(),
+      const res = await fetch("/api/support/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: selectedTicketId,
+          senderId: currentUserId,
+          senderName: user?.displayName || user?.email?.split("@")[0] || "User",
+          text: newMessage.trim(),
+          isAdmin: false,
+          ticketUserId: currentUserId,
+        }),
       });
 
-      await updateDoc(doc(db, "supportTickets", selectedTicketId), {
-        updatedAt: new Date().toISOString(),
-      });
+      if (!res.ok) {
+        throw new Error("Failed to send message");
+      }
 
       setNewMessage("");
     } catch (err) {

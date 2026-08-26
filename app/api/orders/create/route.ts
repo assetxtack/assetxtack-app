@@ -68,6 +68,8 @@ export async function POST(request: Request) {
       senderName: "System Guard",
       text: `🔒 Escrow Funds locked in Vault. Awaiting seller credential delivery.`,
       isSystemMessage: true,
+      buyerId,
+      sellerId,
       createdAt: new Date(),
     });
 

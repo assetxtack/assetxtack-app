@@ -73,12 +73,9 @@ export default function RegisterPage() {
         email: cleanEmail,
         displayName: cleanFullName,
         photoURL: userCredential.user.photoURL || "",
-        role: "user",
-        isVerified: false,
-        kycStatus: "unverified",
         phoneNumber: cleanPhone,
         createdAt: now,
-      });
+      }, { merge: true });
 
       router.push("/dashboard");
     } catch (err) {

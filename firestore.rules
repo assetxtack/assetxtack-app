@@ -2,104 +2,189 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isUserId(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function canReadChat() {
+      return (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.isSystemMessage == true ||
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.sellerId == request.auth.uid ||
+        isOrderParticipant()
+      );
+    }
+
+    function isOrderParticipant() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data.buyerId == request.auth.uid ||
+        get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data.sellerId == request.auth.uid;
+    }
+
+    function hasNoForbiddenFields(forbiddenFields) {
+      return !request.resource.data.keys().hasAny(forbiddenFields);
+    }
+
     // USER PROFILES
     match /users/{userId} {
-      allow read: if isAuthenticated(); // Needed to view seller profiles
-      allow write: if isUserId(userId);
+      allow read: if isAuthenticated();
+
+      allow create: if isUserId(userId)
+        && hasNoForbiddenFields([
+          "walletBalance",
+          "escrowBalance",
+          "lifetimeSales",
+          "kycStatus",
+          "sellerVerified",
+          "role",
+          "bankAccount",
+          "verifiedName",
+          "verifiedIdType",
+          "verifiedIdNumber",
+          "verifiedPhoneNumber",
+          "verifiedDob",
+          "verificationProvider",
+          "verificationReference"
+        ]);
+
+      allow update: if isUserId(userId)
+        && hasNoForbiddenFields([
+          "walletBalance",
+          "escrowBalance",
+          "lifetimeSales",
+          "kycStatus",
+          "sellerVerified",
+          "role",
+          "bankAccount",
+          "verifiedName",
+          "verifiedIdType",
+          "verifiedIdNumber",
+          "verifiedPhoneNumber",
+          "verifiedDob",
+          "verificationProvider",
+          "verificationReference"
+        ]);
+
+      allow delete: if false;
     }
 
     // PUBLIC MARKETPLACE LISTINGS
     match /listings/{listingId} {
       allow read: if true;
-      allow create: if isAuthenticated() 
-        && request.resource.data.sellerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() 
+      allow create: if false;
+      allow update, delete: if isAuthenticated()
         && resource.data.sellerId == request.auth.uid;
     }
 
     // SECURE ORDERS & CREDENTIAL HANDOVER
     match /orders/{orderId} {
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() &&
         (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.buyerId == request.auth.uid;
-      allow update: if isAuthenticated() && 
-        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
+      allow create: if false;
+      allow update, delete: if false;
     }
 
-    // CHATS & MESSAGES (FIXED FOR ORDER-BASED QUERYING)
+    // CHATS & MESSAGES
     match /chats/{chatId} {
-      allow read: if isAuthenticated() && (
-        resource.data.orderId != null ||
-        resource.data.senderId == request.auth.uid || 
-        resource.data.receiverId == request.auth.uid || 
-        (resource.data.participants != null && request.auth.uid in resource.data.participants)
-      );
-      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
-      allow update: if isAuthenticated() && 
-        (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow read: if isAuthenticated() && canReadChat();
+      allow create: if false;
+      allow update, delete: if false;
     }
 
     // NOTIFICATIONS
     match /notifications/{notificationId} {
       allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if false; // Only server/cloud functions should create notifications
+      allow create: if false;
     }
 
     // WALLETS
     match /wallets/{walletId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow write: if false; // Wallet balances should only be updated via backend logic
+      allow write: if false;
     }
 
     // WALLET TRANSACTIONS (AUDIT LEDGER)
     match /walletTransactions/{txId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if false; // Server-only via Firebase Admin SDK
+      allow create: if false;
     }
 
     // WITHDRAWAL REQUESTS
     match /withdrawalRequests/{requestId} {
       allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
-      allow update, delete: if false; // Admin-only mutations via server
+      allow create: if false;
+      allow update, delete: if false;
     }
 
     // KYC VERIFICATION
     match /kyc/{kycId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow create, update: if false;
     }
 
     // DISPUTES
     match /disputes/{disputeId} {
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() &&
         (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && 
-        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
+      allow create: if false;
+      allow update: if false;
     }
 
     // ESCROW (LOCKED TO SERVER-ONLY OR PARTIES)
     match /escrow/{escrowId} {
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() &&
         (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
-      allow write: if false; // Must be managed strictly via Firebase Admin SDK / Paystack Webhooks
+      allow write: if false;
     }
 
     // SUPPORT TICKETS
     match /supportTickets/{ticketId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false; // Admin-only mutations via server
+      allow update: if isAuthenticated()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["updatedAt"]);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (
+          resource.data.senderId == request.auth.uid ||
+          resource.data.ticketUserId == request.auth.uid
+        );
+        allow create: if false;
+        allow update, delete: if false;
+      }
+    }
+
+    // REVIEWS
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow update: if isAuthenticated() && resource.data.buyerId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.buyerId == request.auth.uid;
+    }
+
+    // PAYSTACK TRANSFERS
+    match /transfers/{transferId} {
+      allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
+      allow create: if false;
+      allow update, delete: if false;
+    }
+
+    // REVIEW STATS (DENORMALIZED COUNTERS)
+    match /reviewStats/{sellerId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // ADMIN

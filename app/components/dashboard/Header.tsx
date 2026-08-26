@@ -6,10 +6,7 @@ import NotificationDropdown from "../NotificationDropdown";
 import { 
   Menu, 
   Search, 
-  ChevronDown, 
-  ShieldCheck,
-  User,
-  LogOut
+  ChevronDown
 } from "lucide-react";
 
 interface HeaderProps {
@@ -46,31 +43,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
         {user && <NotificationDropdown userId={user.uid} />}
 
         {/* User Account Menu */}
-        <div className="relative group">
-          <button className="flex items-center gap-2 p-1.5 rounded-xl bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/30 transition-colors">
-            <div className="w-7 h-7 rounded-lg bg-[#7C5CFC]/20 text-[#7C5CFC] font-bold text-xs flex items-center justify-center border border-[#7C5CFC]/30">
-              I
-            </div>
-            <ChevronDown size={14} className="text-[#8A93A3] hidden sm:block" />
-          </button>
-
-          <div className="absolute right-0 mt-2 w-48 bg-[#151922] border border-[#242938] rounded-xl shadow-xl py-2 hidden group-hover:block z-50">
-            <div className="px-4 py-2 border-b border-[#242938]">
-              <div className="text-xs font-bold text-[#EDEFF2]">Iyere</div>
-              <div className="text-[10px] text-[#8A93A3]">iyere@example.com</div>
-            </div>
-            <Link href="/profile" className="flex items-center gap-2.5 px-4 py-2 text-xs text-[#8A93A3] hover:text-[#EDEFF2] hover:bg-[#0B0E14]">
-              <User size={14} /> Profile Settings
-            </Link>
-            <Link href="/wallet" className="flex items-center gap-2.5 px-4 py-2 text-xs text-[#8A93A3] hover:text-[#EDEFF2] hover:bg-[#0B0E14]">
-              <ShieldCheck size={14} /> Security & Payouts
-            </Link>
-            <div className="border-t border-[#242938] my-1" />
-            <Link href="/sign-in" className="flex items-center gap-2.5 px-4 py-2 text-xs text-rose-400 hover:bg-rose-500/10">
-              <LogOut size={14} /> Sign Out
-            </Link>
+        <Link href="/profile" className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/30 transition-colors">
+          <div className="w-8 h-8 rounded-lg bg-[#7C5CFC]/20 text-[#7C5CFC] font-bold text-sm flex items-center justify-center border border-[#7C5CFC]/30">
+            I
           </div>
-        </div>
+          <span className="text-sm font-semibold text-[#EDEFF2]">Profile</span>
+          <ChevronDown size={14} className="text-[#8A93A3]" />
+        </Link>
       </div>
 
     </header>

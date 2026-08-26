@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard } from "lucide-react";
+import { Menu, X, LayoutDashboard, User, ChevronDown, ShieldCheck, ShieldAlert, Star, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import NotificationDropdown from "./NotificationDropdown";
+import { db } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
 function XMark({ size = 22 }: { size?: number }) {
   return (
@@ -44,8 +46,31 @@ const PUBLIC_NAV_LINKS = [
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { user, loading } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [userData, setUserData] = useState<{ fullName?: string; sellerVerified?: boolean; kycStatus?: string } | null>(null);
+  const { user, loading, signOut } = useAuth();
   const pathname = usePathname();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
+      if (snap.exists()) {
+        setUserData(snap.data() as { fullName?: string; sellerVerified?: boolean; kycStatus?: string });
+      }
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, sectionId?: string) => {
     if (!sectionId) return;
@@ -61,6 +86,10 @@ export default function Navbar() {
     }
   };
 
+  const isVerified = Boolean(userData?.sellerVerified === true || userData?.kycStatus === "VERIFIED");
+  const displayName = userData?.fullName || user?.displayName || user?.email?.split("@")[0] || "User";
+  const userInitial = displayName.charAt(0).toUpperCase();
+
   return (
     <header className="sticky top-0 z-50 bg-[#0B0E14]/90 backdrop-blur-md border-b border-[#242938] transition-all">
       <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
@@ -71,14 +100,93 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <Link
               href="/dashboard"
-              className="hidden sm:inline-flex items-center gap-2 text-xs font-semibold text-[#EDEFF2] px-3.5 py-2 rounded-xl border border-[#242938] bg-[#151922]/60 hover:bg-[#151922] transition-all"
+              className="hidden sm:inline-flex items-center gap-2 text-sm font-semibold text-[#EDEFF2] px-4 py-2.5 rounded-xl border border-[#242938] bg-[#151922]/60 hover:bg-[#151922] transition-all"
             >
-              <LayoutDashboard className="w-4 h-4 text-[#FFB020]" />
+              <LayoutDashboard className="w-5 h-5 text-[#FFB020]" />
               Dashboard
             </Link>
 
             {/* Real-time Notification Component */}
             <NotificationDropdown userId={user.uid} />
+
+            {/* Profile Dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#242938] bg-[#151922]/60 hover:bg-[#151922] hover:border-[#FFB020]/30 transition-all"
+              >
+                <div className="w-8 h-8 rounded-lg bg-[#FFB020]/20 border border-[#FFB020]/30 text-[#FFB020] font-bold text-sm flex items-center justify-center">
+                  {userInitial}
+                </div>
+                <span className="hidden sm:block text-sm font-semibold text-[#EDEFF2] max-w-[100px] truncate">
+                  {displayName}
+                </span>
+                <ChevronDown size={16} className={`text-[#8A93A3] transition-transform ${profileOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 mt-2 w-72 bg-[#151922] border border-[#242938] rounded-2xl shadow-2xl overflow-hidden z-50">
+                  {/* Profile Header */}
+                  <div className="p-4 border-b border-[#242938] bg-[#0B0E14]/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-[#FFB020]/20 border border-[#FFB020]/30 text-[#FFB020] font-bold text-lg flex items-center justify-center">
+                        {userInitial}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-base font-bold text-[#EDEFF2] truncate">{displayName}</div>
+                        <div className={`text-sm font-medium flex items-center gap-1 ${isVerified ? "text-emerald-400" : "text-amber-400"}`}>
+                          {isVerified ? (
+                            <>
+                              <ShieldCheck size={14} />
+                              <span>Verified</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShieldAlert size={14} />
+                              <span>Unverified</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="p-2">
+                    <Link
+                      href="/dashboard/profile"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-[#EDEFF2] hover:bg-[#0B0E14] transition-colors"
+                    >
+                      <User size={18} className="text-[#FFB020]" />
+                      My Profile & Reviews
+                    </Link>
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-[#EDEFF2] hover:bg-[#0B0E14] transition-colors"
+                    >
+                      <LayoutDashboard size={18} className="text-[#7C5CFC]" />
+                      Dashboard
+                    </Link>
+                  </div>
+
+                  {/* Sign Out */}
+                  <div className="p-2 border-t border-[#242938]">
+                    <button
+                      onClick={async () => {
+                        setProfileOpen(false);
+                        await signOut();
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
+                    >
+                      <LogOut size={18} />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           /* PUBLIC VISITOR NAV */

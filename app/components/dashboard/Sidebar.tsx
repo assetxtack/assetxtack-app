@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { 
   LayoutDashboard, 
   Store, 
@@ -16,7 +16,8 @@ import {
   X,
   LogOut,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  User
 } from "lucide-react";
 
 function XMark({ size = 22 }: { size?: number }) {
@@ -45,14 +46,14 @@ function Wordmark({ size = 20 }: { size?: number }) {
   );
 }
 
-const NAV_ITEMS = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Marketplace", href: "/marketplace", icon: Store },
-  { name: "My Listings", href: "/my-listings", icon: PlusCircle },
-  { name: "Escrow Orders", href: "/escrow", icon: ShieldCheck, badge: "Live" },
-  { name: "Wallet & Payouts", href: "/wallet", icon: Wallet },
-  { name: "Support & Disputes", href: "/support", icon: HelpCircle },
-];
+  const NAV_ITEMS = [
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Marketplace", href: "/marketplace", icon: Store },
+    { name: "My Listings", href: "/my-listings", icon: PlusCircle },
+    { name: "Escrow Orders", href: "/escrow", icon: ShieldCheck, badge: "Live" },
+    { name: "Wallet & Payouts", href: "/wallet", icon: Wallet },
+    { name: "Support & Disputes", href: "/support", icon: HelpCircle },
+  ];
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -65,19 +66,45 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   const { user, signOut } = useAuth();
 
   // Firestore real-time verification state
-  const [userData, setUserData] = useState<{ kycStatus?: string; sellerVerified?: boolean; fullName?: string } | null>(null);
+  interface UserData {
+    kycStatus?: string;
+    sellerVerified?: boolean;
+    fullName?: string;
+    lifetimeSales?: number;
+  }
+
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [activeListingsCount, setActiveListingsCount] = useState(0);
 
   useEffect(() => {
     if (!user?.uid) return;
 
     // Listen to changes on the user's Firestore document
     const userDocRef = doc(db, "users", user.uid);
-    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+    const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
-        setUserData(docSnap.data() as any);
+        setUserData(docSnap.data() as UserData);
       }
     }, (error) => {
       console.error("Error fetching live user verification state:", error);
+    });
+
+    return () => unsubscribeUser();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const q = query(
+      collection(db, "listings"),
+      where("sellerId", "==", user.uid),
+      where("status", "==", "Active")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setActiveListingsCount(snapshot.size);
+    }, (error) => {
+      console.error("Error fetching active listings count:", error);
     });
 
     return () => unsubscribe();
@@ -88,6 +115,18 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
     userData?.sellerVerified === true || 
     userData?.kycStatus === "VERIFIED"
   );
+
+  const hasCompletedSales = Number(userData?.lifetimeSales || 0) > 0;
+  const hasActiveListings = activeListingsCount > 0;
+  const isSeller = hasCompletedSales || hasActiveListings;
+
+  const badgeLabel = isVerifiedSeller
+    ? isSeller
+      ? "Verified Seller"
+      : "Verified Buyer"
+    : isSeller
+      ? "Unverified Seller"
+      : "Unverified Buyer";
 
   const displayName = userData?.fullName || user?.displayName || user?.email?.split("@")[0] || "Iyere";
   const userInitial = displayName.charAt(0).toUpperCase();
@@ -152,36 +191,37 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
       {/* User Quick Info & Sign Out Footer */}
       <div className="p-4 border-t border-[#242938] bg-[#0B0E14]/40">
-        <div className="p-3.5 bg-[#0B0E14] rounded-xl border border-[#242938] flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 rounded-xl bg-[#FFB020]/20 border border-[#FFB020]/30 text-[#FFB020] font-bold text-sm flex items-center justify-center shrink-0">
-              {userInitial}
-            </div>
-            <div className="overflow-hidden text-left">
-              <div className="text-sm font-bold text-[#EDEFF2] truncate">{displayName}</div>
-              <div className={`text-xs font-medium flex items-center gap-1 ${isVerifiedSeller ? "text-emerald-400" : "text-amber-400"}`}>
-                {isVerifiedSeller ? (
-                  <>
-                    <CheckCircle2 size={12} />
-                    <span>Verified Seller</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle size={12} />
-                    <span>Unverified Seller</span>
-                  </>
-                )}
-              </div>
+        <Link
+          href="/profile"
+          className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/40 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-[#FFB020]/20 border border-[#FFB020]/30 text-[#FFB020] font-bold text-base flex items-center justify-center shrink-0">
+            {userInitial}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-[#EDEFF2] truncate">{displayName}</div>
+            <div className={`text-sm font-medium flex items-center gap-1.5 ${isVerifiedSeller ? "text-emerald-400" : "text-amber-400"}`}>
+              {isVerifiedSeller ? (
+                <>
+                  <CheckCircle2 size={14} />
+                  <span className="truncate">{badgeLabel}</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle size={14} />
+                  <span className="truncate">{badgeLabel}</span>
+                </>
+              )}
             </div>
           </div>
-          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isVerifiedSeller ? "bg-emerald-400" : "bg-amber-400"}`} />
-        </div>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${isVerifiedSeller ? "bg-emerald-400" : "bg-amber-400"}`} />
+        </Link>
 
         <button
           onClick={handleSignOut}
           className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
         >
-          <LogOut size={18} />
+          <LogOut size={16} />
           <span>Sign Out</span>
         </button>
       </div>

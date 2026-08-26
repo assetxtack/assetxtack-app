@@ -8,7 +8,8 @@ export type NotificationType =
   | "DISPUTE_RAISED"
   | "DISPUTE"
   | "ORDER_COMPLETED"
-  | "CREDENTIALS_DELIVERED";
+  | "CREDENTIALS_DELIVERED"
+  | "REVIEW_RECEIVED";
 
 export interface NotificationPayload {
   userId: string;

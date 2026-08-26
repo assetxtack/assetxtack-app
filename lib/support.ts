@@ -88,6 +88,7 @@ export async function addTicketMessage(ticketId: string, message: {
   senderName: string;
   text: string;
   isAdmin?: boolean;
+  ticketUserId?: string;
 }) {
   const adminDb = getAdminFirestore();
   if (!adminDb) {

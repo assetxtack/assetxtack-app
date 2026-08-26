@@ -10,7 +10,7 @@ export interface UserProfile {
   role: "user";
   isVerified: boolean;
   kycStatus: "unverified";
-  createdAt: string;
+  createdAt: Date;
 }
 
 export async function syncUserToFirestore(firebaseUser: User): Promise<UserProfile> {
@@ -25,7 +25,7 @@ export async function syncUserToFirestore(firebaseUser: User): Promise<UserProfi
     return snapshot.data() as UserProfile;
   }
 
-  const now = new Date().toISOString();
+  const now = new Date();
   const profile: UserProfile = {
     uid: firebaseUser.uid,
     email: firebaseUser.email || "",
@@ -37,6 +37,6 @@ export async function syncUserToFirestore(firebaseUser: User): Promise<UserProfi
     createdAt: now,
   };
 
-  await setDoc(userRef, profile);
+  await setDoc(userRef, profile, { merge: true });
   return profile;
 }

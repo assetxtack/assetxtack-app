@@ -37,12 +37,17 @@ export async function POST(request: Request) {
       deliveredAt: new Date(),
     });
 
+    const orderBuyerId = orderData?.buyerId || buyerId;
+    const orderSellerId = orderData?.sellerId || sellerId;
+
     await adminDb.collection("chats").add({
       orderId,
       senderId: "SYSTEM",
       senderName: "System Guard",
       text: "Seller has submitted account credentials. Buyer, please review and confirm delivery.",
       isSystemMessage: true,
+      buyerId: orderBuyerId,
+      sellerId: orderSellerId,
       createdAt: new Date(),
     });
 
