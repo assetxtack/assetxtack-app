@@ -164,7 +164,8 @@ export default function SellerProfilePage() {
 
   const formatDate = (timestamp: unknown) => {
     if (!timestamp) return "N/A";
-    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp as string);
+    const ts = timestamp as { toDate?: () => Date };
+    const date = typeof ts.toDate === "function" ? ts.toDate() : new Date(timestamp as string);
     return date.toLocaleDateString("en-NG", { year: "numeric", month: "long", day: "numeric" });
   };
 

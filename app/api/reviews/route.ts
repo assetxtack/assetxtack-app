@@ -125,6 +125,10 @@ async function updateSellerRating(
   ratingDelta: number,
   reviewCountDelta = 1
 ) {
+  if (!adminDb) {
+    throw new Error("Database not available");
+  }
+
   const statsRef = adminDb.collection("reviewStats").doc(sellerId);
   const statsSnap = await statsRef.get();
 

@@ -134,7 +134,8 @@ export default function ProfilePage() {
 
   const formatDate = (timestamp: unknown) => {
     if (!timestamp) return "N/A";
-    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp as string);
+    const ts = timestamp as { toDate?: () => Date };
+    const date = typeof ts.toDate === "function" ? ts.toDate() : new Date(timestamp as string);
     return date.toLocaleDateString("en-NG", { year: "numeric", month: "long" });
   };
 
@@ -176,7 +177,7 @@ export default function ProfilePage() {
           <section className="bg-[#151922] border border-[#242938] rounded-3xl p-8 md:p-10 shadow-2xl">
             <div className="flex flex-col lg:flex-row items-start gap-8">
               <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-[#FFB020]/20 to-[#7C5CFC]/20 border-2 border-[#FFB020]/40 text-[#FFB020] font-bold text-4xl flex items-center justify-center shrink-0 shadow-lg">
-                {getInitials(userData?.fullName || user?.displayName)}
+                {getInitials(userData?.fullName ?? user?.displayName ?? undefined)}
               </div>
 
               <div className="flex-1 min-w-0">

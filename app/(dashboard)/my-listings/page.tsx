@@ -27,6 +27,25 @@ export default function MyListingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sellerRating, setSellerRating] = useState<number | null>(null);
 
+  interface ListingData {
+    id: string;
+    title?: string;
+    price?: number;
+    rank?: string;
+    skinsCount?: number;
+    heroesCount?: number;
+    winRate?: string;
+    featuredSkins?: string[];
+    images?: string[];
+    imageUrl?: string;
+    status?: string;
+    sellerRating?: string | number;
+    isFeatured?: boolean;
+    hasShieldProtection?: boolean;
+    views?: number;
+    createdAt?: unknown;
+  }
+
   // Live Firestore listener for real-time user KYC verification status
   useEffect(() => {
     if (!user?.uid) return;
@@ -43,11 +62,11 @@ export default function MyListingsPage() {
     return () => unsubscribeUser();
   }, [user?.uid]);
 
-  const isVerifiedSeller = 
+  const isVerifiedSeller = Boolean(
     userData?.kycStatus === "VERIFIED" || 
     userData?.sellerVerified === true || 
-    (user as unknown as Record<string, unknown>)?.isVerified || 
-    false;
+    (user as unknown as Record<string, unknown>)?.isVerified
+  );
 
   // Real-time listener for current user's listings
   useEffect(() => {
@@ -157,17 +176,21 @@ export default function MyListingsPage() {
   };
 
   const filteredListings = listings.filter((item) => {
+    const data = item as unknown as ListingData;
+    const title = typeof data.title === "string" ? data.title : "";
+    const id = typeof data.id === "string" ? data.id : "";
+    const status = typeof data.status === "string" ? data.status : "active";
     const matchesSearch = 
-      item.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      item.id?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTab = String(item.status ?? "active").toLowerCase() === activeTab.toLowerCase();
+      title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTab = status.toLowerCase() === activeTab.toLowerCase();
     return matchesSearch && matchesTab;
   });
 
   const activeListingsCount = listings.filter(
-    (item) => String(item.status ?? "active").toLowerCase() === "active"
+    (item) => String((item as unknown as ListingData).status ?? "active").toLowerCase() === "active"
   ).length;
-  const totalValue = listings.reduce((acc, curr) => acc + (curr.price || 0), 0);
+  const totalValue = listings.reduce((acc, curr) => acc + (typeof (curr as unknown as ListingData).price === "number" ? (curr as unknown as ListingData).price! : 0), 0);
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto text-[#EDEFF2]">
@@ -299,110 +322,119 @@ export default function MyListingsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredListings.map((item) => (
-               <div 
-                 key={item.id} 
-                 className="bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/40 rounded-2xl flex flex-col justify-between gap-5 transition-all group hover:shadow-lg overflow-hidden"
-               >
-                  {/* Listing Image */}
-                  <div className="relative w-full h-40 bg-[#151922] border-b border-[#242938] overflow-hidden">
-                    <img
-                      src={item.images?.[0] || item.imageUrl || "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80"}
-                      alt={item.title || "Listing"}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E14]/80 to-transparent" />
-                  </div>
-
-                  <div className="space-y-3 p-5">
-                   <div className="flex items-center justify-between flex-wrap gap-2">
-                     <div className="flex items-center gap-2 flex-wrap">
-                       <span className="text-xs font-mono font-bold text-[#FFB020] bg-[#FFB020]/10 px-3 py-1 rounded-lg border border-[#FFB020]/20">
-                         {item.id.slice(0, 8)}
-                       </span>
-                       <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
-                         {item.status}
-                       </span>
-                       {item.isFeatured && (
-                         <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30 flex items-center gap-1">
-                           <Zap size={12} className="fill-amber-300" /> Featured Boost
-                         </span>
-                       )}
-                     </div>
-
-                     <div className="flex items-center gap-1.5 text-xs text-[#8A93A3]">
-                       <Eye size={14} />
-                       <span className="font-mono">{item.views || 0} views</span>
-                     </div>
+            {filteredListings.map((item) => {
+               const data = item as unknown as ListingData;
+               const title = typeof data.title === "string" ? data.title : "";
+               const price = typeof data.price === "number" ? data.price : 0;
+               const images = Array.isArray(data.images) ? data.images : [];
+               const status = typeof data.status === "string" ? data.status : "active";
+               const sellerRatingVal = typeof data.sellerRating === "number" ? data.sellerRating : typeof data.sellerRating === "string" ? Number(data.sellerRating) : 5.0;
+               
+               return (
+                <div 
+                  key={data.id} 
+                  className="bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/40 rounded-2xl flex flex-col justify-between gap-5 transition-all group hover:shadow-lg overflow-hidden"
+                >
+                   {/* Listing Image */}
+                   <div className="relative w-full h-40 bg-[#151922] border-b border-[#242938] overflow-hidden">
+                     <img
+                       src={images[0] || data.imageUrl || "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80"}
+                       alt={title || "Listing"}
+                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                     />
+                     <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E14]/80 to-transparent" />
                    </div>
 
-                   <h3 className="text-base font-bold text-[#EDEFF2] group-hover:text-[#FFB020] transition-colors leading-snug">
-                     {item.title}
-                   </h3>
-
-                   <div className="flex items-center gap-1 text-xs font-bold text-[#FFB020]">
-                     <Star size={12} fill="#FFB020" /> {sellerRating !== null ? sellerRating.toFixed(1) : (item.sellerRating || "5.0")}
-                   </div>
-
-                  {/* Rare Skin Tags Display */}
-                  {Array.isArray(item.featuredSkins) && item.featuredSkins.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {item.featuredSkins.map((skin: string, idx: number) => (
-                        <span 
-                          key={idx} 
-                          className="text-[11px] font-bold text-[#A855F7] bg-[#A855F7]/10 px-2.5 py-0.5 rounded-md border border-[#A855F7]/20 flex items-center gap-1"
-                        >
-                          <Sparkles size={10} /> {skin}
+                   <div className="space-y-3 p-5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-mono font-bold text-[#FFB020] bg-[#FFB020]/10 px-3 py-1 rounded-lg border border-[#FFB020]/20">
+                          {data.id.slice(0, 8)}
                         </span>
-                      ))}
-                    </div>
-                  )}
+                        <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
+                          {status}
+                        </span>
+                        {data.isFeatured && (
+                          <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30 flex items-center gap-1">
+                            <Zap size={12} className="fill-amber-300" /> Featured Boost
+                          </span>
+                        )}
+                      </div>
 
-                  <div className="grid grid-cols-4 gap-2 bg-[#151922] p-3 rounded-xl border border-[#242938] text-xs">
-                    <div>
-                      <span className="text-[#8A93A3] text-[11px] block font-medium">Rank</span>
-                      <span className="font-bold text-[#EDEFF2] truncate block">{item.rank}</span>
+                      <div className="flex items-center gap-1.5 text-xs text-[#8A93A3]">
+                        <Eye size={14} />
+                        <span className="font-mono">{data.views || 0} views</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[#8A93A3] text-[11px] block font-medium">Skins</span>
-                      <span className="font-bold text-[#EDEFF2]">{item.skinsCount}</span>
-                    </div>
-                    <div>
-                      <span className="text-[#8A93A3] text-[11px] block font-medium">Heroes</span>
-                      <span className="font-bold text-[#EDEFF2]">{item.heroesCount}</span>
-                    </div>
-                    <div>
-                      <span className="text-[#8A93A3] text-[11px] block font-medium">Win Rate</span>
-                      <span className="font-bold text-emerald-400">{item.winRate || "N/A"}</span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="pt-3 border-t border-[#242938] flex items-center justify-between gap-4">
-                  <div>
-                    <span className="text-xs text-[#8A93A3] block font-medium">Listing Price</span>
-                    <span className="text-lg font-black font-mono text-[#EDEFF2]">₦{(item.price || 0).toLocaleString()}</span>
-                  </div>
+                    <h3 className="text-base font-bold text-[#EDEFF2] group-hover:text-[#FFB020] transition-colors leading-snug">
+                      {title}
+                    </h3>
 
-                  <div className="flex items-center gap-2">
-                    <button 
-                      title="Edit Listing"
-                      className="p-2.5 text-[#8A93A3] hover:text-[#EDEFF2] bg-[#151922] border border-[#242938] hover:border-[#FFB020]/50 rounded-xl transition-all cursor-pointer"
-                    >
-                      <Edit3 size={16} />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteListing(item.id)}
-                      title="Delete Listing"
-                      className="p-2.5 text-rose-400 hover:text-rose-300 bg-[#151922] border border-[#242938] hover:border-rose-500/50 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
+                    <div className="flex items-center gap-1 text-xs font-bold text-[#FFB020]">
+                      <Star size={12} fill="#FFB020" /> {sellerRating !== null ? sellerRating.toFixed(1) : sellerRatingVal}
+                    </div>
 
-              </div>
-            ))}
+                   {/* Rare Skin Tags Display */}
+                   {Array.isArray(data.featuredSkins) && data.featuredSkins.length > 0 && (
+                     <div className="flex flex-wrap gap-1.5 pt-1">
+                       {data.featuredSkins.map((skin: string, idx: number) => (
+                         <span 
+                           key={idx} 
+                           className="text-[11px] font-bold text-[#A855F7] bg-[#A855F7]/10 px-2.5 py-0.5 rounded-md border border-[#A855F7]/20 flex items-center gap-1"
+                         >
+                           <Sparkles size={10} /> {skin}
+                         </span>
+                       ))}
+                     </div>
+                   )}
+
+                   <div className="grid grid-cols-4 gap-2 bg-[#151922] p-3 rounded-xl border border-[#242938] text-xs">
+                     <div>
+                       <span className="text-[#8A93A3] text-[11px] block font-medium">Rank</span>
+                       <span className="font-bold text-[#EDEFF2] truncate block">{data.rank || "Unranked"}</span>
+                     </div>
+                     <div>
+                       <span className="text-[#8A93A3] text-[11px] block font-medium">Skins</span>
+                       <span className="font-bold text-[#EDEFF2]">{data.skinsCount || 0}</span>
+                     </div>
+                     <div>
+                       <span className="text-[#8A93A3] text-[11px] block font-medium">Heroes</span>
+                       <span className="font-bold text-[#EDEFF2]">{data.heroesCount || 0}</span>
+                     </div>
+                     <div>
+                       <span className="text-[#8A93A3] text-[11px] block font-medium">Win Rate</span>
+                       <span className="font-bold text-emerald-400">{data.winRate || "N/A"}</span>
+                     </div>
+                   </div>
+                 </div>
+
+                 <div className="pt-3 border-t border-[#242938] flex items-center justify-between gap-4">
+                   <div>
+                     <span className="text-xs text-[#8A93A3] block font-medium">Listing Price</span>
+                     <span className="text-lg font-black font-mono text-[#EDEFF2]">₦{price.toLocaleString()}</span>
+                   </div>
+
+                   <div className="flex items-center gap-2">
+                     <button 
+                       title="Edit Listing"
+                       className="p-2.5 text-[#8A93A3] hover:text-[#EDEFF2] bg-[#151922] border border-[#242938] hover:border-[#FFB020]/50 rounded-xl transition-all cursor-pointer"
+                     >
+                       <Edit3 size={16} />
+                     </button>
+                     <button 
+                       onClick={() => handleDeleteListing(data.id)}
+                       title="Delete Listing"
+                       className="p-2.5 text-rose-400 hover:text-rose-300 bg-[#151922] border border-[#242938] hover:border-rose-500/50 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
+                     >
+                       <Trash2 size={16} />
+                     </button>
+                   </div>
+                 </div>
+
+               </div>
+             );
+           })}
           </div>
         )}
 
