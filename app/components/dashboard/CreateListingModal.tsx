@@ -6,6 +6,7 @@ import {
   Trash2, ChevronRight, ChevronLeft, ShieldAlert, Zap, Lock, CheckCircle2, FileText, Sparkles, Info, AlertTriangle
 } from "lucide-react";
 import { db, auth } from "@/lib/firebase";
+import { type Game, SUPPORTED_GAMES } from "@/lib/constants/games";
 
 interface CreateListingModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface CreateListingModalProps {
   isVerifiedSeller?: boolean;
   onViewListing?: (id: string) => void;
   onVerifyKyc?: () => void;
+  selectedGame?: Game;
 }
 
 const POPULAR_SKIN_TAGS = ["Collector", "Legend", "PRIME", "KOF", "Aspirants", "M-Series", "Zodiac", "STUN", "11.11", "515"];
@@ -24,7 +26,8 @@ export default function CreateListingModal({
   onSuccess,
   isVerifiedSeller = false,
   onViewListing,
-  onVerifyKyc
+  onVerifyKyc,
+  selectedGame,
 }: CreateListingModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -33,26 +36,47 @@ export default function CreateListingModal({
   const [showSecondaryPass, setShowSecondaryPass] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [createdId, setCreatedId] = useState<string>("");
+  const [internalSelectedGame, setInternalSelectedGame] = useState<Game | null>(null);
+  const [selectedGameId, setSelectedGameId] = useState<string>("");
 
-  // Form State
+  const game = selectedGame || internalSelectedGame;
   const [formData, setFormData] = useState({
     title: "",
-    rank: "Mythical Glory",
-    skinsCount: "",
-    heroesCount: "",
-    winRate: "60%",
+    gameId: game?.id ?? "",
+    gameName: game?.name ?? "",
+    loginProvider: "Email / Publisher ID",
+    accountType: "Full Account Transfer",
+    rank: "",
     price: "",
-    loginMethod: "Moonton Account",
     description: "",
     featuredSkins: [] as string[],
 
-    // Social Media Unbind Statuses
-    moontonStatus: "Clean Email (Handover Ready)",
+    // Dynamic Game Attributes
+    skinsCount: "",
+    heroesCount: "",
+    winRate: "",
+    townHall: "",
+    gems: "",
+    heroLevels: "",
+    seasonLevel: "",
+    cosmetics: "",
+    kdRatio: "",
+    agents: "",
+    hoursPlayed: "",
+    inventoryValue: "",
+    medals: "",
+    battlePass: "",
+    vbucks: "",
+    wins: "",
+    weapons: "",
+    operatorSkins: "",
+    tier: "",
+    champions: "",
+
+    // Linked Account Unbind Statuses
     vkBoundStatus: "Unbound",
     facebookBoundStatus: "Unbound",
     tiktokBoundStatus: "Unbound",
-    googlePlayStatus: "Unbound",
-    appleIdStatus: "Unbound",
 
     // Credentials Payload
     accountEmail: "",
@@ -92,6 +116,13 @@ export default function CreateListingModal({
     });
   };
 
+  const formatAttributeLabel = (attr: string) => {
+    return attr
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim();
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -121,10 +152,17 @@ export default function CreateListingModal({
 
     if (currentStep === 1) {
       if (!formData.title.trim()) return setError("Please enter a listing title.");
-      if (!formData.skinsCount || Number(formData.skinsCount) < 0) return setError("Please enter a valid skins count.");
-      if (!formData.heroesCount || Number(formData.heroesCount) < 0) return setError("Please enter a valid heroes count.");
+      if (!game) return setError("Please select a game.");
       if (!formData.price || Number(formData.price) <= 0) return setError("Please enter a valid selling price.");
-      if (!formData.description.trim()) return setError("Please enter key account features or skin details.");
+      if (!formData.description.trim()) return setError("Please describe the account features and in-game assets.");
+
+      const required = game.requiredAttributes;
+      for (const attr of required) {
+        const value = (formData as unknown as Record<string, string | number>)[attr];
+        if (!value || String(value).trim() === "") {
+          return setError(`Please enter ${formatAttributeLabel(attr).toLowerCase()}.`);
+        }
+      }
     }
 
     if (currentStep === 2) {
@@ -132,10 +170,10 @@ export default function CreateListingModal({
     }
 
     if (currentStep === 3) {
-      if (!formData.accountEmail.trim()) return setError("Moonton / Main account email is required.");
-      if (!formData.accountPassword.trim()) return setError("Main account password is required.");
+      if (!formData.accountEmail.trim()) return setError("Primary account email is required.");
+      if (!formData.accountPassword.trim()) return setError("Primary account password is required.");
       if (!formData.unboundConfirmation) {
-        return setError("You must check and confirm that all social accounts (VK, FB, TikTok) are unlinked before proceeding.");
+        return setError("You must confirm that all linked third-party accounts are unbound before proceeding.");
       }
       if (formData.has2FA === "Yes" && !formData.twoFactorDetails.trim()) {
         setError("Please explain how 2FA codes will be delivered to the buyer.");
@@ -202,7 +240,7 @@ export default function CreateListingModal({
         calculatedFee,
         netPayout,
         feePercentage,
-        loginMethod: formData.loginMethod,
+        loginProvider: formData.loginProvider,
         description: formData.description,
         featuredSkins: formData.featuredSkins,
         isFeatured: isFeaturedBoost,
@@ -214,13 +252,19 @@ export default function CreateListingModal({
         sellerRating: 5.0,
         images: uploadedImageUrls,
 
-        // Social Media Unbind Certifications
-        moontonStatus: formData.moontonStatus,
+        // Game-specific attributes
+        gameAttributes: game?.requiredAttributes.reduce((acc, attr) => {
+          const value = (formData as Record<string, unknown>)[attr];
+          if (value !== undefined && value !== "" && value !== null) {
+            acc[attr] = value as string | number | boolean;
+          }
+          return acc;
+        }, {} as Record<string, string | number | boolean>) || {},
+
+        // Linked Account Unbind Certifications
         vkBoundStatus: formData.vkBoundStatus,
         facebookBoundStatus: formData.facebookBoundStatus,
         tiktokBoundStatus: formData.tiktokBoundStatus,
-        googlePlayStatus: formData.googlePlayStatus,
-        appleIdStatus: formData.appleIdStatus,
 
         // Handover Security Credentials
         accountEmail: formData.accountEmail,
@@ -286,7 +330,7 @@ export default function CreateListingModal({
                 Listing Posted Successfully!
               </h3>
               <p className="text-xs text-[#8A93A3] max-w-md mx-auto leading-relaxed">
-                Your account credentials and social unbind status have been logged. Your listing is now live in the AssetXtack escrow marketplace.
+                Your publisher account credentials and unbind status have been securely logged.
               </p>
             </div>
 
@@ -325,10 +369,10 @@ export default function CreateListingModal({
                 <div className="p-2.5 bg-[#FFB020]/10 border border-[#FFB020]/20 text-[#FFB020] rounded-xl">
                   <Gamepad2 size={24} />
                 </div>
-                <div>
-                  <h2 className="text-lg font-bold font-display">Post MLBB Account</h2>
-                  <p className="text-sm text-[#8A93A3]">Step {currentStep} of 4 — Unbind social accounts and enter details.</p>
-                </div>
+                 <div>
+                   <h2 className="text-lg font-bold font-display">List Publisher Account</h2>
+                   <p className="text-sm text-[#8A93A3]">Step {currentStep} of 4 — Verify linked accounts and enter credentials.</p>
+                 </div>
               </div>
               <button 
                 onClick={onClose}
@@ -358,133 +402,193 @@ export default function CreateListingModal({
               </div>
             )}
 
-            {/* STEP 1: ACCOUNT STATISTICS */}
+            {/* STEP 1: SELECT GAME & ACCOUNT STATISTICS */}
             {currentStep === 1 && (
               <div className="space-y-5">
                 {/* Step 1 Pre-Notice */}
                 <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2.5">
                   <Info size={18} className="shrink-0 text-amber-400 mt-0.5" />
-                  <div>
-                    <strong className="font-bold text-amber-400 block mb-0.5">Important Notice for Sellers:</strong>
-                    Ensure all statistics (Skins, Rank, Win Rate) match your in-game profile exactly. Mismatched stats will cause escrow buyer rejections.
+                   <div>
+                     <strong className="font-bold text-amber-400 block mb-0.5">Important Notice for Sellers:</strong>
+                     Ensure all account attributes match your in-game profile exactly. Mismatched stats will cause escrow buyer rejections.
+                   </div>
+                 </div>
+
+                 {!game ? (
+                   <div className="space-y-4">
+                     <div>
+                       <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Listing Title *</label>
+                       <input
+                         type="text"
+                         placeholder="e.g. Max Level Account — Rare Skins, Battle Pass Active"
+                         value={formData.title}
+                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                         className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]/60 transition-all"
+                       />
+                     </div>
+
+                     <div>
+                       <label className="text-sm font-semibold text-[#EDEFF2] block mb-3">Select Game *</label>
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                         {SUPPORTED_GAMES.map((g) => (
+                           <button
+                             key={g.id}
+                             type="button"
+                              onClick={() => {
+                                setInternalSelectedGame(g);
+                                setSelectedGameId(g.id);
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  gameId: g.id,
+                                  gameName: g.name,
+                                }));
+                              }}
+                              className={`p-4 rounded-xl border text-left transition-all ${
+                                selectedGameId === g.id
+                                  ? "border-[#FFB020] bg-[#FFB020]/10"
+                                  : "border-[#242938] bg-[#0B0E14] hover:border-[#FFB020]/40"
+                              }`}
+                           >
+                             <span className="text-xs font-bold text-[#FFB020] bg-[#FFB020]/10 px-2 py-0.5 rounded-md border border-[#FFB020]/20 font-mono uppercase tracking-wider">
+                               {g.category}
+                             </span>
+                             <h4 className="text-sm font-bold text-[#EDEFF2] mt-2 mb-1">{g.name}</h4>
+                             <p className="text-[11px] text-[#8A93A3] leading-relaxed">
+                               Attributes: {g.requiredAttributes.join(", ")}
+                             </p>
+                           </button>
+                         ))}
+                       </div>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="space-y-5">
+                     <div className="flex items-center justify-between">
+                       <div>
+                         <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Listing Title *</label>
+                         <input
+                           type="text"
+                           placeholder={`e.g. ${game.name} — Max Level, Rare Assets`}
+                           value={formData.title}
+                           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                           className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]/60 transition-all"
+                         />
+                       </div>
+                       <button
+                         type="button"
+                         onClick={() => setInternalSelectedGame(null)}
+                         className="text-xs text-[#8A93A3] hover:text-[#FFB020] transition-colors mt-5"
+                       >
+                         Change Game
+                       </button>
+                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div>
+                         <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Selling Price (₦ NGN) *</label>
+                         <div className="relative">
+                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-mono text-[#8A93A3]">₦</span>
+                           <input
+                             type="number"
+                             placeholder="45000"
+                             value={formData.price}
+                             onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                             className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-9 pr-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
+                           />
+                         </div>
+                       </div>
+
+                       <div>
+                         <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Account Type</label>
+                         <select
+                           value={formData.accountType}
+                           onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
+                           className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-3 text-sm text-[#EDEFF2] focus:outline-none focus:border-[#FFB020]/60 transition-all"
+                         >
+                           <option value="Full Account Transfer">Full Account Transfer</option>
+                           <option value="Shared Access">Shared Access</option>
+                           <option value="Temporary Boost">Temporary Boost</option>
+                         </select>
+                       </div>
+                     </div>
+
+                     {/* Dynamic Game Attributes */}
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                       {game.requiredAttributes.map((attr) => {
+                         const fieldId = `attr-${attr}`;
+                         const label = formatAttributeLabel(attr);
+                         const required = ["rank", "townHall", "seasonLevel", "agents", "battlePass", "tier", "champions", "gems"].includes(attr);
+                         
+                         return (
+                           <div key={fieldId}>
+                             <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">{label} {required && "*"}</label>
+                             {attr === "rank" ? (
+                               <select
+                                 value={formData.rank}
+                                 onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
+                                 className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-3 text-sm text-[#EDEFF2] focus:outline-none focus:border-[#FFB020]/60 transition-all"
+                               >
+                                 <option value="">Select rank...</option>
+                                 <option value="Mythical Immortal">Mythical Immortal</option>
+                                 <option value="Mythical Glory">Mythical Glory</option>
+                                 <option value="Mythical Honor">Mythical Honor</option>
+                                 <option value="Mythic">Mythic</option>
+                                 <option value="Legend">Legend</option>
+                                 <option value="Epic">Epic</option>
+                               </select>
+                             ) : (
+                               <input
+                                 type={attr.includes("Count") || attr.includes("Level") || attr === "gems" || attr === "agents" || attr === "champions" || attr === "hoursPlayed" || attr === "inventoryValue" || attr === "battlePass" || attr === "vbucks" || attr === "wins" ? "number" : "text"}
+                                 placeholder={`Enter ${label.toLowerCase()}`}
+                                  value={((formData as unknown) as Record<string, string | number>)[attr] || ""}
+                                 onChange={(e) => setFormData({ ...formData, [attr]: e.target.value })}
+                                 className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
+                               />
+                             )}
+                           </div>
+                         );
+                       })}
                   </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Listing Title *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Mythical Glory — 140 Skins, Collector Chou + KOF Gusion"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]/60 transition-all"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Highest Rank *</label>
-                    <select
-                      value={formData.rank}
-                      onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
-                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-3 text-sm text-[#EDEFF2] focus:outline-none focus:border-[#FFB020]/60 transition-all"
-                    >
-                      <option value="Mythical Immortal">Mythical Immortal</option>
-                      <option value="Mythical Glory">Mythical Glory</option>
-                      <option value="Mythical Honor">Mythical Honor</option>
-                      <option value="Mythic">Mythic</option>
-                      <option value="Legend">Legend</option>
-                      <option value="Epic">Epic</option>
-                    </select>
-                  </div>
 
                   <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Skins Count *</label>
-                    <input
-                      type="number"
-                      placeholder="85"
-                      value={formData.skinsCount}
-                      onChange={(e) => setFormData({ ...formData, skinsCount: e.target.value })}
-                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
+                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Description & Account Features *</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Describe account level, rare in-game assets, emblem levels, and transfer details..."
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl p-3.5 text-sm text-[#EDEFF2] placeholder-[#8A93A3] resize-none transition-all"
                     />
                   </div>
-
-                  <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Heroes Count *</label>
-                    <input
-                      type="number"
-                      placeholder="122"
-                      value={formData.heroesCount}
-                      onChange={(e) => setFormData({ ...formData, heroesCount: e.target.value })}
-                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
-                    />
-                  </div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Selling Price (₦ NGN) *</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-mono text-[#8A93A3]">₦</span>
-                      <input
-                        type="number"
-                        placeholder="45000"
-                        value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-9 pr-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Win Rate (%)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 62.4%"
-                      value={formData.winRate}
-                      onChange={(e) => setFormData({ ...formData, winRate: e.target.value })}
-                      className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Rare Skins Tag Select */}
-                <div>
-                  <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Rare Skin Badges</label>
-                  <div className="flex flex-wrap gap-2">
-                    {POPULAR_SKIN_TAGS.map((tag) => {
-                      const isSelected = formData.featuredSkins.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => toggleSkinTag(tag)}
-                          className={`text-xs px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1 transition-all cursor-pointer ${
-                            isSelected
-                              ? "bg-[#7C5CFC] text-white border-[#7C5CFC]"
-                              : "bg-[#0B0E14] text-[#8A93A3] border-[#242938] hover:border-[#7C5CFC]/50"
-                          }`}
-                        >
-                          <Sparkles size={12} className={isSelected ? "text-[#FFB020]" : "text-[#8A93A3]"} />
-                          {tag}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Description & Rare Effects *</label>
-                  <textarea
-                    rows={3}
-                    placeholder="List rare skins, recall effects, and emblem levels..."
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl p-3.5 text-sm text-[#EDEFF2] placeholder-[#8A93A3] resize-none transition-all"
-                  />
-                </div>
-              </div>
-            )}
+                 {/* Rare Skins Tag Select */}
+                 <div>
+                   <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Rare Asset Badges</label>
+                   <div className="flex flex-wrap gap-2">
+                     {POPULAR_SKIN_TAGS.map((tag) => {
+                       const isSelected = formData.featuredSkins.includes(tag);
+                       return (
+                         <button
+                           key={tag}
+                           type="button"
+                           onClick={() => toggleSkinTag(tag)}
+                           className={`text-xs px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1 transition-all cursor-pointer ${
+                             isSelected
+                               ? "bg-[#7C5CFC] text-white border-[#7C5CFC]"
+                               : "bg-[#0B0E14] text-[#8A93A3] border-[#242938] hover:border-[#7C5CFC]/50"
+                           }`}
+                         >
+                           <Sparkles size={12} className={isSelected ? "text-[#FFB020]" : "text-[#8A93A3]"} />
+                           {tag}
+                         </button>
+                       );
+                     })}
+                   </div>
+                 </div>
+               </div>
+              )}
 
             {/* STEP 2: SCREENSHOT PROOF (UP TO 15 IMAGES) */}
             {currentStep === 2 && (
@@ -494,7 +598,7 @@ export default function CreateListingModal({
                   <Info size={18} className="shrink-0 text-blue-400 mt-0.5" />
                   <div>
                     <strong className="font-bold text-blue-400 block mb-0.5">Screenshot Verification Guide:</strong>
-                    Upload up to **15 screenshots** showing: Account Profile, Skin Gallery, Win Rate, Emblem Levels, and the **Account Bind Status Page**.
+                     Upload up to **15 screenshots** showing: Account Profile, Asset Gallery, Win Rate, Emblem Levels, and the **Account Bind Status Page**.
                   </div>
                 </div>
 
@@ -537,24 +641,24 @@ export default function CreateListingModal({
               </div>
             )}
 
-            {/* STEP 3: SOCIAL UNBIND CHECK & CREDENTIAL HANDOVER */}
+            {/* STEP 3: LINKED ACCOUNT UNBIND CHECK & CREDENTIAL HANDOVER */}
             {currentStep === 3 && (
               <div className="space-y-5">
                 {/* Step 3 Mandatory Pre-Notice */}
                 <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 space-y-1.5">
                   <div className="flex items-center gap-2 font-bold text-rose-400 text-sm">
                     <ShieldAlert size={18} />
-                    <span>MANDATORY SOCIAL UNBIND NOTICE FOR SELLERS</span>
+                    <span>MANDATORY LINKED ACCOUNT UNBIND NOTICE</span>
                   </div>
                   <p className="leading-relaxed">
-                    Before providing credentials, **ALL third-party accounts (VK, Facebook, TikTok, Google Play, Apple ID)** MUST be completely unbound from Moonton. Leaving linked social accounts will allow buyers to reject the order or trigger fraud disputes.
+                    Before providing credentials, **ALL linked third-party accounts** MUST be completely unbound. Leaving linked accounts will allow buyers to reject the order or trigger fraud disputes.
                   </p>
                 </div>
 
                 {/* Social Unbind Confirmation Grid */}
                 <div className="space-y-3 pt-1">
                   <h4 className="text-xs font-bold text-[#FFB020] uppercase tracking-wider font-mono flex items-center gap-2">
-                    <Lock size={14} /> 1. Confirm Social Account Unbind Status
+                    <Lock size={14} /> 1. Confirm Linked Account Unbind Status
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -599,15 +703,15 @@ export default function CreateListingModal({
                 {/* Primary Credentials */}
                 <div className="space-y-3 pt-2 border-t border-[#242938]">
                   <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono flex items-center gap-2">
-                    <Key size={14} /> 2. Moonton Account Logins
+                    <Key size={14} /> 2. Publisher Account Credentials
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Moonton Email *</label>
+                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Primary Account Email *</label>
                       <input
                         type="email"
-                        placeholder="mlbbaccount@gmail.com"
+                        placeholder="account@email.com"
                         value={formData.accountEmail}
                         onChange={(e) => setFormData({ ...formData, accountEmail: e.target.value })}
                         className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] focus:border-emerald-500"
@@ -615,7 +719,7 @@ export default function CreateListingModal({
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Moonton Password *</label>
+                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Primary Account Password *</label>
                       <div className="relative">
                         <input
                           type={showPassword ? "text" : "password"}
@@ -645,7 +749,7 @@ export default function CreateListingModal({
                     className="mt-1 rounded accent-[#FFB020] w-4 h-4 cursor-pointer"
                   />
                   <span className="text-xs text-[#EDEFF2] leading-relaxed">
-                    <strong>I certify that all social accounts are unbound</strong> and the buyer will have full direct access without recovery risks.
+                    <strong>I certify that all linked accounts are unbound</strong> and the buyer will have full direct access without recovery risks.
                   </span>
                 </label>
               </div>

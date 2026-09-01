@@ -21,12 +21,13 @@ export interface Listing {
   sellerName?: string;
   title: string;
   price: number;
-  rank?: string;
+  gameId: string;
+  gameName: string;
+  loginProvider?: string;
+  accountType?: string;
   platform?: string;
-  skinsCount?: number;
-  heroesCount?: number;
-  winRate?: string;
-  featuredSkins?: string[];
+  rank?: string;
+  gameAttributes?: Record<string, string | number | boolean>;
   images?: string[];
   description?: string;
   status?: "Active" | "Sold" | "Expired" | "Draft";
@@ -34,9 +35,6 @@ export interface Listing {
   isFeatured?: boolean;
   hasShieldProtection?: boolean;
   listingPlan?: "shield" | "standard" | "featured";
-  emblemsMax?: number;
-  skins?: number;
-  heroes?: number;
   createdAt?: string | Date;
 }
 

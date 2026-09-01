@@ -100,7 +100,7 @@ export default function Home() {
           </div>
 
           <h1 className="font-[var(--font-display)] font-extrabold text-[#EDEFF2] tracking-tight leading-[1.1] text-4xl sm:text-5xl md:text-6xl mb-6">
-            Turn your MLBB account <br className="hidden sm:block" />
+            Turn your publisher account <br className="hidden sm:block" />
             into <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFB020] via-[#FF8800] to-[#7C5CFC]">cash safely.</span>
           </h1>
 
@@ -186,7 +186,7 @@ export default function Home() {
             </div>
             <h3 className="font-semibold text-base text-[#EDEFF2] mb-2">Account Credential Transfer</h3>
             <p className="text-xs text-[#8A93A3] leading-relaxed">
-              The seller releases Moonton/email access. The buyer verifies rank, skins, and binds their security settings.
+              The seller releases publisher account credentials. The buyer verifies account access and in-game assets before confirming handover.
             </p>
           </div>
 
@@ -263,7 +263,7 @@ export default function Home() {
         <div className="space-y-3">
           <FAQItem
             question="How does the escrow protection work?"
-            answer="When a buyer purchases an account, the funds are paid directly to AssetXtack Escrow (via Paystack/Flutterwave). We notify the seller to release the Moonton/email details. The buyer inspects the account, and once confirmed, the funds are released to the seller's bank account."
+            answer="When a buyer purchases an account, the funds are paid directly to AssetXtack Escrow (via Paystack/Flutterwave). We notify the seller to release the account credentials. The buyer inspects the account, and once confirmed, the funds are released to the seller's bank account."
           />
           <FAQItem
             question="How fast do sellers get paid?"
@@ -284,7 +284,7 @@ export default function Home() {
       <section className="max-w-6xl mx-auto px-5 pb-16">
         <div className="rounded-2xl px-6 py-12 text-center bg-[#151922] border border-[#242938]">
           <h3 className="font-[var(--font-display)] font-bold text-2xl md:text-3xl text-[#EDEFF2] mb-3">
-            Ready to trade MLBB accounts safely?
+            Ready to trade publisher accounts safely?
           </h3>
           <p className="text-sm text-[#8A93A3] mb-7 max-w-md mx-auto">
             Join hundreds of Nigerian Mobile Legends gamers trading accounts without fear of getting scammed.

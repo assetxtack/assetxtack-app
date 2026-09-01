@@ -32,7 +32,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8A93A3]" />
           <input
             type="text"
-            placeholder="Search MLBB ranks, heroes, skins, or order ID..."
+            placeholder="Search listings, ranks, or order ID..."
             className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-9 pr-4 py-2 text-xs text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]/50 transition-colors"
           />
         </div>

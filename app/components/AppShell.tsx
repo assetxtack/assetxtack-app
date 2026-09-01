@@ -15,7 +15,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/escrow") ||
     pathname.startsWith("/wallet") ||
     pathname.startsWith("/support") ||
-    pathname.startsWith("/seller");
+    pathname.startsWith("/seller") ||
+    pathname.startsWith("/orders");
 
   if (isDashboardRoute) {
     return <main className="flex-1">{children}</main>;

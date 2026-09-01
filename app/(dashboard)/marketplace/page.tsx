@@ -124,7 +124,7 @@ export default function MarketplacePage() {
           </div>
           <div className="flex items-center gap-2 text-xs text-[#EDEFF2] bg-[#151922] px-3.5 py-2 rounded-xl border border-[#242938] shrink-0">
             <Gamepad2 size={16} className="text-[#FFB020]" />
-            <span>Active Game: <strong className="text-[#FFB020]">Mobile Legends: Bang Bang</strong></span>
+            <span>Active Game: <strong className="text-[#FFB020]">Configured Game</strong></span>
           </div>
         </div>
 
@@ -136,7 +136,7 @@ export default function MarketplacePage() {
               <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8A93A3]" />
               <input
                 type="text"
-                placeholder="Search skins, ranks, or sellers..."
+                placeholder="Search listings, ranks, or sellers..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-10 pr-4 py-2.5 text-xs text-[#EDEFF2] placeholder-[#8A93A3] focus:outline-none focus:border-[#FFB020]"

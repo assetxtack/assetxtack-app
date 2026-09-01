@@ -53,7 +53,7 @@ export default function Footer() {
             tack
           </div>
           <p className="text-xs text-[#8A93A3] leading-relaxed max-w-[220px]">
-            A safe marketplace to buy and sell MLBB accounts in Nigeria.
+            A safe marketplace to buy and sell publisher accounts in Nigeria.
           </p>
         </div>
 

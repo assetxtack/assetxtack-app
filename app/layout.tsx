@@ -23,8 +23,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AssetXtack — Turn your MLBB account into cash",
-  description: "A safe marketplace to buy and sell MLBB accounts in Nigeria.",
+  title: "AssetXtack — Turn your publisher account into cash",
+  description: "A safe marketplace to buy and sell publisher accounts in Nigeria.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

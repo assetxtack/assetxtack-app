@@ -69,6 +69,10 @@ type Listing = {
   heroesCount?: number;
   featuredSkins?: string[];
   platform?: string;
+  loginProvider?: string;
+  gameId?: string;
+  gameName?: string;
+  gameAttributes?: Record<string, string | number | boolean>;
   status?: string;
   images?: string[];
   description?: string;
@@ -82,6 +86,13 @@ type Listing = {
   sellerRating?: string | number;
   listingPlan?: "shield" | "standard";
   createdAt?: unknown;
+};
+
+const formatAttributeLabel = (attr: string) => {
+  return attr
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase())
+    .trim();
 };
 
 export default function MyListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -251,7 +262,7 @@ export default function MyListingDetailPage({ params }: { params: Promise<{ id: 
               <div className="flex flex-wrap gap-3 pt-1">
                 <div className="inline-flex items-center gap-1.5 text-xs text-[#8A93A3] bg-[#0B0E14] px-3 py-1.5 rounded-lg border border-[#242938]">
                   <Smartphone size={14} className="text-[#FFB020]" />
-                  <span>Platform: <strong className="text-[#EDEFF2]">{listing.platform || "Moonton"}</strong></span>
+                  <span>Platform: <strong className="text-[#EDEFF2]">{listing.loginProvider || listing.platform || "Standard"}</strong></span>
                 </div>
                 <div className="inline-flex items-center gap-1.5 text-xs text-[#8A93A3] bg-[#0B0E14] px-3 py-1.5 rounded-lg border border-[#242938]">
                   <KeyRound size={14} className="text-emerald-400" />
@@ -304,17 +315,27 @@ export default function MyListingDetailPage({ params }: { params: Promise<{ id: 
                     <strong className="text-sm md:text-base font-extrabold text-[#EDEFF2] block mt-1">{listing.rank || "N/A"}</strong>
                   </div>
                   <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
-                    <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Skins Count</span>
-                    <strong className="text-sm md:text-base font-extrabold text-[#FFB020] block mt-1">{listing.skins ?? listing.skinsCount ?? 0}</strong>
+                    <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Price</span>
+                    <strong className="text-sm md:text-base font-extrabold text-emerald-400 block mt-1">₦{(listing.price || 0).toLocaleString()}</strong>
                   </div>
-                  <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
-                    <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Win Rate</span>
-                    <strong className="text-sm md:text-base font-extrabold text-emerald-400 block mt-1">{listing.winRate || "N/A"}</strong>
-                  </div>
-                  <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
-                    <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Max Emblems</span>
-                    <strong className="text-sm md:text-base font-extrabold text-[#EDEFF2] block mt-1">{listing.emblemsMax || 0} / 7</strong>
-                  </div>
+                  {listing.gameAttributes && Object.entries(listing.gameAttributes).slice(0, 2).map(([key, value]) => (
+                    <div key={key} className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
+                      <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">{formatAttributeLabel(key)}</span>
+                      <strong className="text-sm md:text-base font-extrabold text-[#FFB020] block mt-1">{String(value)}</strong>
+                    </div>
+                  ))}
+                  {(!listing.gameAttributes || Object.keys(listing.gameAttributes).length === 0) && (
+                    <>
+                      <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
+                        <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Skins Count</span>
+                        <strong className="text-sm md:text-base font-extrabold text-[#FFB020] block mt-1">{listing.skins ?? listing.skinsCount ?? 0}</strong>
+                      </div>
+                      <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
+                        <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Win Rate</span>
+                        <strong className="text-sm md:text-base font-extrabold text-emerald-400 block mt-1">{listing.winRate || "N/A"}</strong>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Featured Rare Skins */}
@@ -340,7 +361,7 @@ export default function MyListingDetailPage({ params }: { params: Promise<{ id: 
                 <div className="bg-[#151922] border border-[#242938] p-6 rounded-2xl space-y-3">
                   <h3 className="font-bold text-sm text-[#EDEFF2]">Seller Notes</h3>
                   <p className="text-xs text-[#8A93A3] leading-relaxed">
-                    {listing.description || "Maintained account with full event skins, high win-rate, clean email transfer, and zero sanctions. Complete login control (Moonton account + dedicated Gmail) handed over immediately upon Escrow deposit lock."}
+                     {listing.description || "Maintained account with full in-game assets, high performance, clean email transfer, and zero sanctions. Complete login control (Publisher account + dedicated recovery email) handed over immediately upon Escrow deposit lock."}
                   </p>
                 </div>
               </div>
@@ -352,7 +373,7 @@ export default function MyListingDetailPage({ params }: { params: Promise<{ id: 
                 
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between p-3 bg-[#0B0E14] rounded-xl border border-[#242938]">
-                    <span className="text-xs text-[#EDEFF2]">Moonton Account Unbind / Transferable</span>
+                    <span className="text-xs text-[#EDEFF2]">Linked Accounts Unbound / Transferable</span>
                     <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
                       <Check size={14} /> Available
                     </span>

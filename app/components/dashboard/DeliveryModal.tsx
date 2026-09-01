@@ -12,7 +12,7 @@ interface DeliveryModalProps {
 }
 
 export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onClose }: DeliveryModalProps) {
-  const [moontonEmail, setMoontonEmail] = useState("");
+  const [primaryEmail, setPrimaryEmail] = useState("");
   const [password, setPassword] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [transferCode, setTransferCode] = useState("");
@@ -23,7 +23,7 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
 
   const buildCredentialsBlob = () => {
     const parts = [
-      moontonEmail ? `Moonton Email: ${moontonEmail}` : "",
+      primaryEmail ? `Primary Email: ${primaryEmail}` : "",
       password ? `Password: ${password}` : "",
       recoveryEmail ? `Recovery Email: ${recoveryEmail}` : "",
       transferCode ? `Transfer Code: ${transferCode}` : "",
@@ -84,14 +84,14 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
 
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Moonton Account Email</label>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">Primary Account Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
                 <input
                   type="email"
                   required
-                  value={moontonEmail}
-                  onChange={(e) => setMoontonEmail(e.target.value)}
+                  value={primaryEmail}
+                  onChange={(e) => setPrimaryEmail(e.target.value)}
                   placeholder="account@domain.com"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                 />

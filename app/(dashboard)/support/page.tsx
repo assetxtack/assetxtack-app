@@ -59,7 +59,7 @@ interface Order {
 const FAQS = [
   {
     question: "How does the AssetXtack escrow protection work?",
-    answer: "When a buyer pays for an MLBB account, funds are held securely in our vault. The seller then releases the account credentials. The buyer gets an inspection timer to log in and verify skins and heroes before funds are released to the seller."
+    answer: "When a buyer pays for a publisher account, funds are held securely in our vault. The seller then releases the account credentials. The buyer gets an inspection timer to log in and verify assets before funds are released to the seller."
   },
   {
     question: "What should I do if the login details provided don't work?",

@@ -210,7 +210,7 @@ export default function MyListingsPage() {
             <Gamepad2 className="text-[#FFB020]" size={30} /> My Listings
           </h1>
           <p className="text-sm text-[#8A93A3] max-w-xl leading-relaxed">
-            Manage your active MLBB gaming accounts, highlight high-tier skin tags, and list new assets for secure escrow settlements.
+            Manage your active publisher account listings and list new digital assets for secure escrow settlements.
           </p>
         </div>
 
