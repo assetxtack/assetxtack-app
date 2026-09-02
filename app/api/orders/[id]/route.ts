@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { sendNotification } from "@/lib/notifications";
 import { recordWalletTransaction } from "@/lib/wallet";
+import { sendDisputeEmail } from "@/lib/email/sendDisputeEmail";
+import { sendOrderCompletedEmail } from "@/lib/email/sendOrderCompletedEmail";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +46,11 @@ export async function PATCH(request: Request) {
 
     if (!orderId || !status) {
       return NextResponse.json({ error: "orderId and status are required" }, { status: 400 });
+    }
+
+    const validStatuses = ["IN_ESCROW", "AWAITING_CREDENTIALS", "INSPECTION_PERIOD", "DELIVERED", "COMPLETED", "DISPUTED", "CANCELLED"];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
     }
 
     const adminDb = getAdminFirestore();
@@ -108,6 +115,20 @@ export async function PATCH(request: Request) {
         message: "Buyer confirmed delivery. Escrow funds have been released to your wallet.",
         type: "ORDER_COMPLETED",
       });
+
+      const sellerSnap = await adminDb.collection("users").doc(sellerId).get();
+      const sellerData = sellerSnap.exists ? sellerSnap.data() : null;
+      const sellerEmail = String(sellerData?.email || "").trim();
+
+      console.log("Checking sellerId for order-completed email:", sellerId);
+      console.log("Fetched sellerEmail from Firestore:", sellerEmail);
+
+      await sendOrderCompletedEmail({
+        sellerId,
+        orderId,
+        listingTitle: String(orderData.title || ""),
+        payoutAmount: sellerPayout,
+      });
     }
 
     if (status === "DISPUTED") {
@@ -121,6 +142,19 @@ export async function PATCH(request: Request) {
           message: "A dispute has been raised. Support will review the trade details.",
           type: "DISPUTE",
         });
+
+        const oppositeSnap = await adminDb.collection("users").doc(oppositeParty).get();
+        const oppositeData = oppositeSnap.exists ? oppositeSnap.data() : null;
+        const oppositeEmail = String(oppositeData?.email || "").trim();
+
+        console.log("Checking oppositePartyId for dispute email:", oppositeParty);
+        console.log("Fetched oppositeEmail from Firestore:", oppositeEmail);
+
+        await sendDisputeEmail({
+          userId: oppositeParty,
+          orderId,
+          listingTitle: String(orderData.title || ""),
+        });
       }
 
       if (initiatorId) {
@@ -130,6 +164,19 @@ export async function PATCH(request: Request) {
           title: "Dispute submitted",
           message: `Your dispute request for order #${orderId.slice(0, 6)} is under review.`,
           type: "DISPUTE",
+        });
+
+        const initiatorSnap = await adminDb.collection("users").doc(initiatorId).get();
+        const initiatorData = initiatorSnap.exists ? initiatorSnap.data() : null;
+        const initiatorEmail = String(initiatorData?.email || "").trim();
+
+        console.log("Checking initiatorId for dispute email:", initiatorId);
+        console.log("Fetched initiatorEmail from Firestore:", initiatorEmail);
+
+        await sendDisputeEmail({
+          userId: String(initiatorId),
+          orderId,
+          listingTitle: String(orderData.title || ""),
         });
       }
     }

@@ -112,7 +112,7 @@ export default function WalletPage() {
     const ordersQuery = query(
       collection(db, "orders"),
       where("sellerId", "==", user.uid),
-      where("status", "in", ["IN_ESCROW", "DELIVERED"])
+      where("status", "in", ["AWAITING_CREDENTIALS","INSPECTION_PERIOD", "IN_ESCROW", "DELIVERED", "DISPUTED"])
     );
     const unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
       let total = 0;

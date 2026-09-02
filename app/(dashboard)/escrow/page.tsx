@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { collection, onSnapshot, or, query, where } from "firebase/firestore";
+import { collection, onSnapshot, or, query, where, orderBy } from "firebase/firestore";
 import { ArrowRight, Clock, PackageX, ShieldCheck, Filter } from "lucide-react";
 import AuthGuard from "../../components/AuthGuard";
 import { useAuth } from "../../context/AuthContext";
@@ -14,7 +14,7 @@ type EscrowOrder = {
   amount?: number;
   buyerId?: string;
   sellerId?: string;
-  status?: string;
+  status?: "IN_ESCROW" | "AWAITING_CREDENTIALS" | "INSPECTION_PERIOD" | "DELIVERED" | "COMPLETED" | "DISPUTED" | "CANCELLED" | string;
 };
 
 type FilterTab = "ALL" | "ACTIVE" | "COMPLETED" | "DISPUTED";
@@ -32,7 +32,8 @@ export default function EscrowOrdersPage() {
 
     const ordersQuery = query(
       collection(db, "orders"),
-      or(where("buyerId", "==", user.uid), where("sellerId", "==", user.uid))
+      or(where("buyerId", "==", user.uid), where("sellerId", "==", user.uid)),
+      orderBy("createdAt", "desc")
     );
 
     return onSnapshot(
@@ -75,12 +76,19 @@ export default function EscrowOrdersPage() {
           label: "CANCELLED",
           className: "bg-slate-800 text-slate-400 border-slate-700",
         };
+      case "INSPECTION_PERIOD":
+      case "DELIVERED":
+        return {
+          label: "INSPECTION",
+          className: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+        };
       case "IN_ESCROW":
+      case "AWAITING_CREDENTIALS":
       case "PENDING":
       default:
         return {
-          label: "IN ESCROW",
-          className: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+          label: "AWAITING",
+          className: "bg-blue-500/10 text-blue-400 border-blue-500/20",
         };
     }
   };
@@ -89,7 +97,7 @@ export default function EscrowOrdersPage() {
   const filteredOrders = orders.filter((order) => {
     const normStatus = (order.status || "IN_ESCROW").toUpperCase();
     if (activeTab === "ACTIVE") {
-      return normStatus === "IN_ESCROW" || normStatus === "PENDING";
+      return normStatus === "IN_ESCROW" || normStatus === "AWAITING_CREDENTIALS" || normStatus === "INSPECTION_PERIOD" || normStatus === "PENDING" || normStatus === "DELIVERED";
     }
     if (activeTab === "COMPLETED") {
       return normStatus === "COMPLETED" || normStatus === "RELEASED";
@@ -145,7 +153,7 @@ export default function EscrowOrdersPage() {
             {
               orders.filter((o) => {
                 const s = (o.status || "IN_ESCROW").toUpperCase();
-                return s === "IN_ESCROW" || s === "PENDING";
+                return s === "IN_ESCROW" || s === "AWAITING_CREDENTIALS" || s === "INSPECTION_PERIOD" || s === "PENDING" || s === "DELIVERED";
               }).length
             }
             )

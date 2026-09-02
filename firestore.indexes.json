@@ -80,6 +80,22 @@
       ]
     },
     {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "paymentVerifiedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "credentialsDeliveredAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "supportTickets",
       "queryScope": "COLLECTION",
       "fields": [

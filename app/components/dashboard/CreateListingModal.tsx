@@ -7,6 +7,9 @@ import {
 } from "lucide-react";
 import { db, auth } from "@/lib/firebase";
 import { type Game, SUPPORTED_GAMES } from "@/lib/constants/games";
+import { type GameConfig, getGameConfig } from "@/lib/config/gameConfigs";
+import { validateListingForm } from "@/lib/listings/validation";
+import { buildListingPayload } from "@/lib/listings/utils";
 
 interface CreateListingModalProps {
   isOpen: boolean;
@@ -18,7 +21,27 @@ interface CreateListingModalProps {
   selectedGame?: Game;
 }
 
-const POPULAR_SKIN_TAGS = ["Collector", "Legend", "PRIME", "KOF", "Aspirants", "M-Series", "Zodiac", "STUN", "11.11", "515"];
+const ACCOUNT_TYPE_OPTIONS = ["Full Account Transfer"] as const;
+
+const getGameFormDefaultValues = (config?: GameConfig) => {
+  const attributeDefaults = Object.fromEntries((config?.attributes ?? []).map((attr) => [attr.key, ""]));
+  const credentialDefaults = Object.fromEntries((config?.credentials ?? []).map((cred) => [cred.key, ""]));
+
+  return {
+    ...attributeDefaults,
+    ...credentialDefaults,
+    rank: "",
+    loginProvider: "",
+    accountType: ACCOUNT_TYPE_OPTIONS[0],
+    featuredSkins: [] as string[],
+    accountEmail: "",
+    accountPassword: "",
+    secondaryPassword: "",
+    has2FA: "No",
+    twoFactorDetails: "",
+    unboundConfirmation: false,
+  };
+};
 
 export default function CreateListingModal({ 
   isOpen, 
@@ -32,19 +55,19 @@ export default function CreateListingModal({
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showSecondaryPass, setShowSecondaryPass] = useState(false);
+
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [createdId, setCreatedId] = useState<string>("");
   const [internalSelectedGame, setInternalSelectedGame] = useState<Game | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<string>("");
 
   const game = selectedGame || internalSelectedGame;
+  const activeConfig: GameConfig | undefined = game ? getGameConfig(game.id) : undefined;
   const [formData, setFormData] = useState({
     title: "",
     gameId: game?.id ?? "",
     gameName: game?.name ?? "",
-    loginProvider: "Email / Publisher ID",
+    loginProvider: "",
     accountType: "Full Account Transfer",
     rank: "",
     price: "",
@@ -74,22 +97,23 @@ export default function CreateListingModal({
     champions: "",
 
     // Linked Account Unbind Statuses
-    vkBoundStatus: "Unbound",
-    facebookBoundStatus: "Unbound",
-    tiktokBoundStatus: "Unbound",
+    vkBoundStatus: "",
+    facebookBoundStatus: "",
+    tiktokBoundStatus: "",
 
-    // Credentials Payload
+    // Credentials Payload (collected post-payment via escrow)
     accountEmail: "",
-    accountPassword: "",
-    secondaryPassword: "",
     has2FA: "No",
     twoFactorDetails: "",
     unboundConfirmation: false,
 
-    // Listing Plan & Featured Boost
+// Listing Plan & Featured Boost
     listingPlan: "shield" as "shield" | "standard",
     shieldDurationDays: 30,
   });
+
+  const [attrValues, setAttrValues] = useState<Record<string, string>>({});
+  const [credValues, setCredValues] = useState<Record<string, string>>({});
 
   // Screenshot Upload State (Max 15)
   const [screenshots, setScreenshots] = useState<File[]>([]);
@@ -123,6 +147,28 @@ export default function CreateListingModal({
       .trim();
   };
 
+  const resetGameSpecificState = (nextGame: Game | null) => {
+    const nextConfig = nextGame ? getGameConfig(nextGame.id) : undefined;
+    const defaults = getGameFormDefaultValues(nextConfig);
+
+    setFormData((prev) => ({
+      ...prev,
+      ...defaults,
+      title: prev.title,
+      price: prev.price,
+      description: prev.description,
+      gameId: nextGame?.id ?? "",
+      gameName: nextGame?.name ?? "",
+      listingPlan: prev.listingPlan,
+      shieldDurationDays: prev.shieldDurationDays,
+      gameAttributes: {}, // Explicitly clear old game attributes
+      credentials: {}, // Explicitly clear old game credentials
+      featuredSkins: [], // Clear badge selections
+    }));
+  };
+
+  const activeGameId = game?.id ?? (selectedGameId || formData.gameId);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -151,17 +197,9 @@ export default function CreateListingModal({
     setError("");
 
     if (currentStep === 1) {
-      if (!formData.title.trim()) return setError("Please enter a listing title.");
-      if (!game) return setError("Please select a game.");
-      if (!formData.price || Number(formData.price) <= 0) return setError("Please enter a valid selling price.");
-      if (!formData.description.trim()) return setError("Please describe the account features and in-game assets.");
-
-      const required = game.requiredAttributes;
-      for (const attr of required) {
-        const value = (formData as unknown as Record<string, string | number>)[attr];
-        if (!value || String(value).trim() === "") {
-          return setError(`Please enter ${formatAttributeLabel(attr).toLowerCase()}.`);
-        }
+      const validation = validateListingForm(activeGameId, formData, 1);
+      if (!validation.success) {
+        return setError(validation.message || "Please complete the required listing details.");
       }
     }
 
@@ -170,14 +208,9 @@ export default function CreateListingModal({
     }
 
     if (currentStep === 3) {
-      if (!formData.accountEmail.trim()) return setError("Primary account email is required.");
-      if (!formData.accountPassword.trim()) return setError("Primary account password is required.");
-      if (!formData.unboundConfirmation) {
-        return setError("You must confirm that all linked third-party accounts are unbound before proceeding.");
-      }
-      if (formData.has2FA === "Yes" && !formData.twoFactorDetails.trim()) {
-        setError("Please explain how 2FA codes will be delivered to the buyer.");
-        return;
+      const validation = validateListingForm(activeGameId, formData, 3);
+      if (!validation.success) {
+        return setError(validation.message || "Please complete the required credentials.");
       }
     }
 
@@ -217,6 +250,13 @@ export default function CreateListingModal({
     if (loading) return; // Guard against duplicate button taps
 
     setError("");
+
+    const validation = validateListingForm(activeGameId, formData, 4);
+    if (!validation.success) {
+      setError(validation.message || "Please complete the required listing details before submitting.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -230,17 +270,11 @@ export default function CreateListingModal({
         }
       }
 
-      const payload = {
+      const payload = buildListingPayload(activeGameId, formData, {
         title: formData.title,
-        rank: formData.rank,
-        skinsCount: Number(formData.skinsCount),
-        heroesCount: Number(formData.heroesCount),
-        winRate: formData.winRate || "N/A",
+        gameId: activeGameId,
         price: Number(formData.price),
-        calculatedFee,
-        netPayout,
-        feePercentage,
-        loginProvider: formData.loginProvider,
+        accountType: formData.accountType,
         description: formData.description,
         featuredSkins: formData.featuredSkins,
         isFeatured: isFeaturedBoost,
@@ -251,28 +285,11 @@ export default function CreateListingModal({
         sellerVerified: isVerifiedSeller,
         sellerRating: 5.0,
         images: uploadedImageUrls,
-
-        // Game-specific attributes
-        gameAttributes: game?.requiredAttributes.reduce((acc, attr) => {
-          const value = (formData as Record<string, unknown>)[attr];
-          if (value !== undefined && value !== "" && value !== null) {
-            acc[attr] = value as string | number | boolean;
-          }
-          return acc;
-        }, {} as Record<string, string | number | boolean>) || {},
-
-        // Linked Account Unbind Certifications
-        vkBoundStatus: formData.vkBoundStatus,
-        facebookBoundStatus: formData.facebookBoundStatus,
-        tiktokBoundStatus: formData.tiktokBoundStatus,
-
-        // Handover Security Credentials
-        accountEmail: formData.accountEmail,
-        accountPassword: formData.accountPassword,
-        secondaryPassword: formData.secondaryPassword,
-        has2FA: formData.has2FA,
-        twoFactorDetails: formData.twoFactorDetails,
-      };
+        feePercentage,
+        calculatedFee,
+        netPayout,
+        loginProvider: formData.loginProvider,
+      });
 
       const res = await fetch("/api/listings/create", {
         method: "POST",
@@ -430,34 +447,35 @@ export default function CreateListingModal({
                      <div>
                        <label className="text-sm font-semibold text-[#EDEFF2] block mb-3">Select Game *</label>
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                         {SUPPORTED_GAMES.map((g) => (
-                           <button
-                             key={g.id}
-                             type="button"
-                              onClick={() => {
-                                setInternalSelectedGame(g);
-                                setSelectedGameId(g.id);
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  gameId: g.id,
-                                  gameName: g.name,
-                                }));
-                              }}
-                              className={`p-4 rounded-xl border text-left transition-all ${
-                                selectedGameId === g.id
-                                  ? "border-[#FFB020] bg-[#FFB020]/10"
-                                  : "border-[#242938] bg-[#0B0E14] hover:border-[#FFB020]/40"
-                              }`}
-                           >
-                             <span className="text-xs font-bold text-[#FFB020] bg-[#FFB020]/10 px-2 py-0.5 rounded-md border border-[#FFB020]/20 font-mono uppercase tracking-wider">
-                               {g.category}
-                             </span>
-                             <h4 className="text-sm font-bold text-[#EDEFF2] mt-2 mb-1">{g.name}</h4>
-                             <p className="text-[11px] text-[#8A93A3] leading-relaxed">
-                               Attributes: {g.requiredAttributes.join(", ")}
-                             </p>
-                           </button>
-                         ))}
+                         {SUPPORTED_GAMES.map((g) => {
+                           const config = getGameConfig(g.id);
+                           const gameAttributes = config?.attributes.map((attr) => attr.label).join(", ") ?? g.requiredAttributes.join(", ");
+
+                           return (
+                             <button
+                               key={g.id}
+                               type="button"
+                               onClick={() => {
+                                 setInternalSelectedGame(g);
+                                 setSelectedGameId(g.id);
+                                 resetGameSpecificState(g);
+                               }}
+                               className={`p-4 rounded-xl border text-left transition-all ${
+                                 selectedGameId === g.id
+                                   ? "border-[#FFB020] bg-[#FFB020]/10"
+                                   : "border-[#242938] bg-[#0B0E14] hover:border-[#FFB020]/40"
+                               }`}
+                             >
+                               <span className="text-xs font-bold text-[#FFB020] bg-[#FFB020]/10 px-2 py-0.5 rounded-md border border-[#FFB020]/20 font-mono uppercase tracking-wider">
+                                 {g.category}
+                               </span>
+                               <h4 className="text-sm font-bold text-[#EDEFF2] mt-2 mb-1">{g.name}</h4>
+                               <p className="text-[11px] text-[#8A93A3] leading-relaxed">
+                                 Attributes: {gameAttributes}
+                               </p>
+                             </button>
+                           );
+                         })}
                        </div>
                      </div>
                    </div>
@@ -476,7 +494,11 @@ export default function CreateListingModal({
                        </div>
                        <button
                          type="button"
-                         onClick={() => setInternalSelectedGame(null)}
+                         onClick={() => {
+                           setInternalSelectedGame(null);
+                           setSelectedGameId("");
+                           resetGameSpecificState(null);
+                         }}
                          className="text-xs text-[#8A93A3] hover:text-[#FFB020] transition-colors mt-5"
                        >
                          Change Game
@@ -505,50 +527,50 @@ export default function CreateListingModal({
                            onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
                            className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-3 text-sm text-[#EDEFF2] focus:outline-none focus:border-[#FFB020]/60 transition-all"
                          >
-                           <option value="Full Account Transfer">Full Account Transfer</option>
-                           <option value="Shared Access">Shared Access</option>
-                           <option value="Temporary Boost">Temporary Boost</option>
+                           {ACCOUNT_TYPE_OPTIONS.map((option) => (
+                             <option key={option} value={option}>{option}</option>
+                           ))}
                          </select>
+                         <p className="text-xs text-[#8A93A3] mt-2">AssetXtack exclusively supports permanent, full publisher account transfers.</p>
                        </div>
                      </div>
 
-                     {/* Dynamic Game Attributes */}
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                       {game.requiredAttributes.map((attr) => {
-                         const fieldId = `attr-${attr}`;
-                         const label = formatAttributeLabel(attr);
-                         const required = ["rank", "townHall", "seasonLevel", "agents", "battlePass", "tier", "champions", "gems"].includes(attr);
-                         
+                       {(activeConfig?.attributes ?? []).map((attr) => {
+                         const fieldValue = (formData as Record<string, unknown>)[attr.key];
+                         const isNumericField = attr.type === "number";
+                         const isSelectField = attr.type === "select";
+
                          return (
-                           <div key={fieldId}>
-                             <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">{label} {required && "*"}</label>
-                             {attr === "rank" ? (
+                           <div key={attr.key}>
+                             <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">
+                               {attr.label} {attr.required && "*"}
+                             </label>
+
+                             {isSelectField ? (
                                <select
-                                 value={formData.rank}
-                                 onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
+                                 value={String(fieldValue ?? "")}
+                                 onChange={(e) => setFormData({ ...formData, [attr.key]: e.target.value })}
                                  className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-3 text-sm text-[#EDEFF2] focus:outline-none focus:border-[#FFB020]/60 transition-all"
                                >
-                                 <option value="">Select rank...</option>
-                                 <option value="Mythical Immortal">Mythical Immortal</option>
-                                 <option value="Mythical Glory">Mythical Glory</option>
-                                 <option value="Mythical Honor">Mythical Honor</option>
-                                 <option value="Mythic">Mythic</option>
-                                 <option value="Legend">Legend</option>
-                                 <option value="Epic">Epic</option>
+                                 <option value="">Select {attr.label.toLowerCase()}...</option>
+                                 {(attr.options ?? []).map((option) => (
+                                   <option key={option} value={option}>{option}</option>
+                                 ))}
                                </select>
                              ) : (
                                <input
-                                 type={attr.includes("Count") || attr.includes("Level") || attr === "gems" || attr === "agents" || attr === "champions" || attr === "hoursPlayed" || attr === "inventoryValue" || attr === "battlePass" || attr === "vbucks" || attr === "wins" ? "number" : "text"}
-                                 placeholder={`Enter ${label.toLowerCase()}`}
-                                  value={((formData as unknown) as Record<string, string | number>)[attr] || ""}
-                                 onChange={(e) => setFormData({ ...formData, [attr]: e.target.value })}
-                                 className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
-                               />
+                                 type={isNumericField ? "number" : "text"}
+                                 placeholder={attr.placeholder}
+value={(fieldValue as string | number | undefined) ?? ""}
+                                  onChange={(e) => setFormData({ ...formData, [attr.key]: e.target.value })}
+                                  className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
+                                />
                              )}
                            </div>
                          );
                        })}
-                  </div>
+                     </div>
 
                   <div>
                     <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Description & Account Features *</label>
@@ -563,30 +585,32 @@ export default function CreateListingModal({
                 </div>
               )}
 
-                 {/* Rare Skins Tag Select */}
-                 <div>
-                   <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Rare Asset Badges</label>
-                   <div className="flex flex-wrap gap-2">
-                     {POPULAR_SKIN_TAGS.map((tag) => {
-                       const isSelected = formData.featuredSkins.includes(tag);
-                       return (
-                         <button
-                           key={tag}
-                           type="button"
-                           onClick={() => toggleSkinTag(tag)}
-                           className={`text-xs px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1 transition-all cursor-pointer ${
-                             isSelected
-                               ? "bg-[#7C5CFC] text-white border-[#7C5CFC]"
-                               : "bg-[#0B0E14] text-[#8A93A3] border-[#242938] hover:border-[#7C5CFC]/50"
-                           }`}
-                         >
-                           <Sparkles size={12} className={isSelected ? "text-[#FFB020]" : "text-[#8A93A3]"} />
-                           {tag}
-                         </button>
-                       );
-                     })}
+                 {/* Rare Skins Tag Select - Guarded Rendering */}
+                 {activeConfig?.badges && activeConfig.badges.length > 0 && (
+                   <div>
+                     <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Rare Asset Badges</label>
+                     <div className="flex flex-wrap gap-2">
+                       {(activeConfig.badges ?? []).map((tag) => {
+                         const isSelected = formData.featuredSkins.includes(tag);
+                         return (
+                           <button
+                             key={tag}
+                             type="button"
+                             onClick={() => toggleSkinTag(tag)}
+                             className={`text-xs px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1 transition-all cursor-pointer ${
+                               isSelected
+                                 ? "bg-[#7C5CFC] text-white border-[#7C5CFC]"
+                                 : "bg-[#0B0E14] text-[#8A93A3] border-[#242938] hover:border-[#7C5CFC]/50"
+                             }`}
+                           >
+                             <Sparkles size={12} className={isSelected ? "text-[#FFB020]" : "text-[#8A93A3]"} />
+                             {tag}
+                           </button>
+                         );
+                       })}
+                     </div>
                    </div>
-                 </div>
+                 )}
                </div>
               )}
 
@@ -651,7 +675,7 @@ export default function CreateListingModal({
                     <span>MANDATORY LINKED ACCOUNT UNBIND NOTICE</span>
                   </div>
                   <p className="leading-relaxed">
-                    Before providing credentials, **ALL linked third-party accounts** MUST be completely unbound. Leaving linked accounts will allow buyers to reject the order or trigger fraud disputes.
+                    **ALL linked third-party accounts** MUST be completely unbound before the buyer takes control. Leaving linked accounts will allow buyers to reject the order or trigger fraud disputes. Account credentials will be collected post-payment via the escrow dashboard.
                   </p>
                 </div>
 
@@ -700,43 +724,16 @@ export default function CreateListingModal({
                   </div>
                 </div>
 
-                {/* Primary Credentials */}
+                {/* Account Transferability Confirmation */}
                 <div className="space-y-3 pt-2 border-t border-[#242938]">
                   <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono flex items-center gap-2">
-                    <Key size={14} /> 2. Publisher Account Credentials
+                    <Key size={14} /> 2. Account Transferability Status
                   </h4>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Primary Account Email *</label>
-                      <input
-                        type="email"
-                        placeholder="account@email.com"
-                        value={formData.accountEmail}
-                        onChange={(e) => setFormData({ ...formData, accountEmail: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-4 py-3 text-sm text-[#EDEFF2] focus:border-emerald-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Primary Account Password *</label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="••••••••••••"
-                          value={formData.accountPassword}
-                          onChange={(e) => setFormData({ ...formData, accountPassword: e.target.value })}
-                          className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-4 pr-11 py-3 text-sm text-[#EDEFF2] font-mono focus:border-emerald-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8A93A3] hover:text-[#EDEFF2]"
-                        >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                      </div>
-                    </div>
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 text-xs text-emerald-300">
+                    <p className="leading-relaxed">
+                      Account credentials and login details will be collected <strong>post-payment</strong> via the secure escrow dashboard. This protects both sellers and buyers during the transaction.
+                    </p>
                   </div>
                 </div>
 

@@ -38,8 +38,10 @@ interface FirestoreOrder {
   buyerId: string;
   sellerId: string;
   sellerName?: string;
-  status: "IN_ESCROW" | "AWAITING_DELIVERY" | "DELIVERED" | "DISPUTED" | "COMPLETED" | string;
+  status: "IN_ESCROW" | "AWAITING_CREDENTIALS" | "INSPECTION_PERIOD" | "DELIVERED" | "AWAITING_DELIVERY" | "DISPUTED" | "COMPLETED" | "CANCELLED" | string;
   createdAt?: Timestamp | Date | string | null;
+  paymentVerifiedAt?: Timestamp | Date | string | null;
+  credentialsDeliveredAt?: Timestamp | Date | string | null;
 }
 
 export default function DashboardPage() {
@@ -108,6 +110,8 @@ export default function DashboardPage() {
 
         const activeStatuses = new Set([
           "IN_ESCROW",
+          "AWAITING_CREDENTIALS",
+          "INSPECTION_PERIOD",
           "DISPUTED",
           "AWAITING_DELIVERY",
           "DELIVERED"
@@ -405,14 +409,14 @@ export default function DashboardPage() {
                           <span className="font-bold text-sm text-[#EDEFF2]">{order.title || "Untitled Order"}</span>
 
                           {/* Dynamic Status Badges */}
-                          {(order.status === "IN_ESCROW" || order.status === "AWAITING_DELIVERY") && (
+                          {(order.status === "IN_ESCROW" || order.status === "AWAITING_CREDENTIALS") && (
                             <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                              In Escrow
+                              Awaiting Credentials
                             </span>
                           )}
-                          {order.status === "DELIVERED" && (
+                          {(order.status === "DELIVERED" || order.status === "INSPECTION_PERIOD") && (
                             <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                              Credentials Delivered
+                              Inspection Period
                             </span>
                           )}
                           {order.status === "DISPUTED" && (
@@ -425,6 +429,11 @@ export default function DashboardPage() {
                               Completed
                             </span>
                           )}
+                          {order.status === "CANCELLED" && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-500/20 text-slate-400 border border-slate-500/30">
+                              Cancelled
+                            </span>
+                          )}
                         </div>
 
                         <div className="text-xs text-[#8A93A3] mt-1 flex flex-wrap items-center gap-3">
@@ -433,7 +442,7 @@ export default function DashboardPage() {
                           <span>Amount: <strong className="text-emerald-400">{formatNaira(order.amount || 0)}</strong></span>
                           <span>•</span>
                           <span className="flex items-center gap-1 text-[#FFB020]">
-                            <Clock size={12} /> 24-Hour Hold Active
+                            <Clock size={12} /> 24h Phase Timer Active
                           </span>
                         </div>
                       </div>
@@ -450,10 +459,10 @@ export default function DashboardPage() {
                         }`}
                       >
                         {isBuyer ? (
-                          order.status === "DELIVERED" ? "Inspect Credentials" :
+                          (order.status === "DELIVERED" || order.status === "INSPECTION_PERIOD") ? "Inspect Credentials" :
                           order.status === "DISPUTED" ? "View Dispute Room" : "View Order Room"
                         ) : (
-                          order.status === "AWAITING_DELIVERY" || order.status === "IN_ESCROW" ? "Submit Credentials" :
+                          (order.status === "AWAITING_DELIVERY" || order.status === "IN_ESCROW" || order.status === "AWAITING_CREDENTIALS") ? "Submit Credentials" :
                           order.status === "DISPUTED" ? "View Dispute Room" : "View Order Room"
                         )}
                       </Link>

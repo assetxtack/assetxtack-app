@@ -49,7 +49,7 @@ export interface Order {
   hasShieldProtection?: boolean;
   listingPlan?: "shield" | "standard" | "featured";
   buyerId: string;
-  status: "IN_ESCROW" | "DELIVERED" | "COMPLETED" | "DISPUTED" | "CANCELLED";
+  status: "IN_ESCROW" | "AWAITING_CREDENTIALS" | "INSPECTION_PERIOD" | "DELIVERED" | "COMPLETED" | "DISPUTED" | "CANCELLED";
   rank?: string;
   skinsCount?: number;
   paymentReference?: string;
@@ -57,9 +57,17 @@ export interface Order {
   credentialsSubmitted?: string;
   deliveryNotes?: string;
   paidAt?: string | Date;
+  paymentVerifiedAt?: string | Date;
+  credentialsDeliveredAt?: string | Date;
   createdAt?: string | Date;
   completedAt?: string | Date;
   disputedAt?: string | Date;
+  reminderFlags?: {
+    seller12hSent?: boolean;
+    seller2hSent?: boolean;
+    buyer12hSent?: boolean;
+    buyer2hSent?: boolean;
+  };
 }
 
 export interface Review {

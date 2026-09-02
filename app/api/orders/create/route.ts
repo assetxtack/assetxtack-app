@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { sendNotification } from "@/lib/notifications";
 import { recordWalletTransaction } from "@/lib/wallet";
+import { sendNewOrderSellerEmail } from "@/lib/email/sendNewOrderSellerEmail";
 
 export const dynamic = "force-dynamic";
 
@@ -52,12 +54,13 @@ export async function POST(request: Request) {
       hasShieldProtection: Boolean(hasShieldProtection),
       listingPlan: listingPlan || (Boolean(hasShieldProtection) ? "shield" : "standard"),
       buyerId,
-      status: "IN_ESCROW",
+      status: "AWAITING_CREDENTIALS",
       rank: rank || "",
       skinsCount: skinsCount || 0,
       paymentReference,
-      paidAt: new Date(),
-      createdAt: new Date(),
+      paidAt: FieldValue.serverTimestamp(),
+      paymentVerifiedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
 
     await listingsRef.doc(listingId).update({ status: "sold" });
@@ -66,7 +69,7 @@ export async function POST(request: Request) {
       orderId: orderRef.id,
       senderId: "SYSTEM",
       senderName: "System Guard",
-      text: `🔒 Escrow Funds locked in Vault. Awaiting seller credential delivery.`,
+      text: `Payment verified and locked in Vault. Seller has 24 hours to deliver account credentials.`,
       isSystemMessage: true,
       buyerId,
       sellerId,
@@ -79,10 +82,12 @@ export async function POST(request: Request) {
         orderId: orderRef.id,
         type: "ESCROW_LOCK",
         amount: Number(amount),
-        description: `Escrow lock for ${title || "listing"}`,
+        description: `Funds locked in escrow for order #${orderRef.id.slice(0, 6)}`,
         metadata: { listingId, sellerId, paymentReference },
       });
     }
+
+    console.log("Checking sellerId:", sellerId);
 
     if (sellerId) {
       await sendNotification({
@@ -91,6 +96,21 @@ export async function POST(request: Request) {
         title: "Payment received",
         message: `A buyer paid for ${title || "your account listing"}. Credentials are now required.`,
         type: "ESCROW_LOCKED",
+      });
+
+      const sellerSnap = await adminDb.collection("users").doc(sellerId).get();
+      const sellerData = sellerSnap.exists ? sellerSnap.data() : null;
+      const sellerEmail = String(sellerData?.email || "").trim();
+
+      console.log("Fetched sellerEmail from Firestore:", sellerEmail);
+
+      console.log("Attempting to send seller new-order email to:", sellerEmail, { orderId: orderRef.id, title, amount: Number(amount) });
+
+      await sendNewOrderSellerEmail({
+        sellerId,
+        orderId: orderRef.id,
+        title: title || "your account listing",
+        amount: Number(amount),
       });
     }
 

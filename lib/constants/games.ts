@@ -1,57 +1,30 @@
+import { GameConfig, GAME_CONFIGS } from "../config/gameConfigs";
+
 export interface Game {
   id: string;
   name: string;
   category: "Mobile" | "PC" | "Console";
   requiredAttributes: string[];
+  ranks?: string[];
+  badges?: string[];
 }
 
-export const SUPPORTED_GAMES: Game[] = [
-  {
-    id: "mobile-legends",
-    name: "Mobile Legends: Bang Bang",
-    category: "Mobile",
-    requiredAttributes: ["rank", "skinsCount", "heroesCount", "winRate"],
-  },
-  {
-    id: "clash-of-clans",
-    name: "Clash of Clans",
-    category: "Mobile",
-    requiredAttributes: ["townHall", "gems", "heroLevels"],
-  },
-  {
-    id: "pubg-mobile",
-    name: "PUBG Mobile",
-    category: "Mobile",
-    requiredAttributes: ["rank", "seasonLevel", "cosmetics", "kdRatio"],
-  },
-  {
-    id: "valorant",
-    name: "Valorant",
-    category: "PC",
-    requiredAttributes: ["rank", "agents", "skins", "hoursPlayed"],
-  },
-  {
-    id: "cs2",
-    name: "Counter-Strike 2",
-    category: "PC",
-    requiredAttributes: ["rank", "inventoryValue", "hoursPlayed", "medals"],
-  },
-  {
-    id: "fortnite",
-    name: "Fortnite",
-    category: "Console",
-    requiredAttributes: ["battlePass", "skins", "vbucks", "wins"],
-  },
-  {
-    id: "call-of-duty-mobile",
-    name: "Call of Duty Mobile",
-    category: "Mobile",
-    requiredAttributes: ["rank", "weapons", "operatorSkins", "tier"],
-  },
-  {
-    id: "league-of-legends",
-    name: "League of Legends",
-    category: "PC",
-    requiredAttributes: ["rank", "champions", "skins", "hoursPlayed"],
-  },
-];
+const categoryMap: Record<GameConfig["category"], "Mobile" | "PC" | "Console"> = {
+  MOBILE: "Mobile",
+  PC: "PC",
+  CONSOLE: "Console",
+};
+
+export const SUPPORTED_GAMES: Game[] = (Object.values(GAME_CONFIGS) as GameConfig[]).map(
+  (config: GameConfig): Game => ({
+    id: config.id,
+    name: config.name,
+    category: categoryMap[config.category],
+    requiredAttributes: config.attributes.map((attr) => attr.key),
+    ranks: config.ranks,
+    badges: config.badges,
+  })
+);
+
+export type { GameConfig };
+export { GAME_CONFIGS, getGameConfig, getGameConfigById, allGameConfigs } from "../config/gameConfigs";

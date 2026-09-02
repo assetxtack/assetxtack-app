@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { validateListingPayload } from "@/lib/listings/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -8,13 +9,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       title,
-      rank,
-      skinsCount,
-      heroesCount,
-      winRate,
       price,
-      feePercentage,
-      loginMethod,
+      accountType,
+      gameId,
       description,
       featuredSkins,
       isFeatured,
@@ -25,6 +22,17 @@ export async function POST(request: Request) {
       sellerVerified,
       sellerRating,
       images,
+      feePercentage,
+      gameAttributes = {},
+      credentials = {},
+
+      // Backward-compatible root-level fields
+      rank,
+      skinsCount,
+      heroesCount,
+      winRate,
+      loginMethod,
+      loginProvider,
       moontonStatus,
       vkBoundStatus,
       facebookBoundStatus,
@@ -36,11 +44,35 @@ export async function POST(request: Request) {
       secondaryPassword,
       has2FA,
       twoFactorDetails,
-    } = body;
+    } = body ?? {};
 
     if (!title || !sellerId || !price) {
       return NextResponse.json(
         { success: false, error: "Missing required fields: title, sellerId, price" },
+        { status: 400 }
+      );
+    }
+
+    const numericPrice = Number(price);
+    if (Number.isNaN(numericPrice) || numericPrice <= 0) {
+      return NextResponse.json(
+        { success: false, error: "Price must be a positive number" },
+        { status: 400 }
+      );
+    }
+
+    const validation = validateListingPayload({
+      userId: sellerId,
+      gameId: gameId ?? "",
+      title,
+      price: numericPrice,
+      accountType,
+      gameAttributes,
+      credentials,
+    });
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.message || "Validation failed", details: validation.errors },
         { status: 400 }
       );
     }
@@ -50,47 +82,85 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Database not available" }, { status: 500 });
     }
 
-    const numericPrice = Number(price);
-    const calculatedFee = Math.round((numericPrice * (feePercentage || 5)) / 100);
+    const effectiveFeePercentage = Number(feePercentage) || 5;
+    const calculatedFee = Math.round((numericPrice * effectiveFeePercentage) / 100);
+    const netPayout = numericPrice - calculatedFee;
 
-    const listingData = {
+    const safeAttrs = gameAttributes && typeof gameAttributes === "object" ? gameAttributes : {};
+    const safeCreds = credentials && typeof credentials === "object" ? credentials : {};
+
+    const mergedGameAttributes: Record<string, string | number | boolean> = {
+      ...safeAttrs,
+    };
+    if (rank !== undefined && rank !== "") mergedGameAttributes.rank = rank;
+    if (skinsCount !== undefined && skinsCount !== "") mergedGameAttributes.skinsCount = Number(skinsCount) || 0;
+    if (heroesCount !== undefined && heroesCount !== "") mergedGameAttributes.heroesCount = Number(heroesCount) || 0;
+    if (winRate !== undefined && winRate !== "") mergedGameAttributes.winRate = winRate;
+
+    const mergedCredentials: Record<string, string | boolean> = { ...safeCreds };
+    const legacyCredentialFields: Record<string, string | undefined> = {
+      moontonStatus,
+      vkBoundStatus,
+      facebookBoundStatus,
+      tiktokBoundStatus,
+      googlePlayStatus,
+      appleIdStatus,
+      accountEmail,
+      accountPassword,
+      secondaryPassword,
+      has2FA,
+      twoFactorDetails,
+    };
+    for (const [key, value] of Object.entries(legacyCredentialFields)) {
+      if (value !== undefined && value !== null && value !== "") {
+        mergedCredentials[key] = value as string;
+      }
+    }
+
+    const listingData: Record<string, unknown> = {
       title,
-      rank: rank || "",
-      skinsCount: Number(skinsCount) || 0,
-      heroesCount: Number(heroesCount) || 0,
-      winRate: winRate || "N/A",
+      gameId: gameId || "",
       price: numericPrice,
       calculatedFee,
-      netPayout: numericPrice - calculatedFee,
-      feePercentage: feePercentage || 5,
-      loginMethod: loginMethod || "Moonton Account",
+      netPayout,
+      feePercentage: effectiveFeePercentage,
+      accountType: accountType || "Full Account Transfer",
+      loginMethod: loginMethod || loginProvider || "Email",
       description: description || "",
-      featuredSkins: featuredSkins || [],
+      featuredSkins: Array.isArray(featuredSkins) ? featuredSkins : [],
       isFeatured: Boolean(isFeatured),
       hasShieldProtection: Boolean(hasShieldProtection),
       listingPlan: listingPlan || "standard",
       sellerId,
       sellerName: sellerName || "Seller",
       sellerVerified: Boolean(sellerVerified),
-      sellerRating: sellerRating || 5.0,
+      sellerRating: sellerRating ?? 5.0,
       status: "Active",
       views: 0,
-      images: images || [],
+      images: Array.isArray(images) ? images : [],
       createdAt: new Date(),
       updatedAt: new Date(),
 
-      moontonStatus: moontonStatus || "Clean Email (Handover Ready)",
-      vkBoundStatus: vkBoundStatus || "Unbound",
-      facebookBoundStatus: facebookBoundStatus || "Unbound",
-      tiktokBoundStatus: tiktokBoundStatus || "Unbound",
-      googlePlayStatus: googlePlayStatus || "Unbound",
-      appleIdStatus: appleIdStatus || "Unbound",
+      // Nested structured payload
+      gameAttributes: mergedGameAttributes,
+      credentials: mergedCredentials,
 
-      accountEmail: accountEmail || "",
-      accountPassword: accountPassword || "",
-      secondaryPassword: secondaryPassword || "",
-      has2FA: has2FA || "No",
-      twoFactorDetails: twoFactorDetails || "",
+      // Backward-compatible root-level fields for legacy readers
+      rank: rank ?? (mergedGameAttributes.rank as string | undefined) ?? "",
+      skinsCount: Number(skinsCount) || Number(mergedGameAttributes.skinsCount) || 0,
+      heroesCount: Number(heroesCount) || Number(mergedGameAttributes.heroesCount) || 0,
+      winRate: winRate ?? (mergedGameAttributes.winRate as string | undefined) ?? "N/A",
+      moontonStatus: moontonStatus ?? mergedCredentials.moontonStatus ?? "",
+      vkBoundStatus: vkBoundStatus ?? mergedCredentials.vkBoundStatus ?? "",
+      facebookBoundStatus: facebookBoundStatus ?? mergedCredentials.facebookBoundStatus ?? "",
+      tiktokBoundStatus: tiktokBoundStatus ?? mergedCredentials.tiktokBoundStatus ?? "",
+      googlePlayStatus: googlePlayStatus ?? mergedCredentials.googlePlayStatus ?? "",
+      appleIdStatus: appleIdStatus ?? mergedCredentials.appleIdStatus ?? "",
+      accountEmail: accountEmail ?? mergedCredentials.accountEmail ?? "",
+      accountPassword: accountPassword ?? mergedCredentials.accountPassword ?? "",
+      secondaryPassword: secondaryPassword ?? mergedCredentials.secondaryPassword ?? "",
+      has2FA: has2FA ?? mergedCredentials.has2FA ?? "No",
+      twoFactorDetails: twoFactorDetails ?? mergedCredentials.twoFactorDetails ?? "",
     };
 
     const docRef = await adminDb.collection("listings").add(listingData);

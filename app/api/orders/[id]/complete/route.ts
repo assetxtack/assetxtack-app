@@ -82,15 +82,13 @@ export async function POST(request: Request) {
         createdAt: new Date(),
       });
 
-      if (sellerId) {
-        await sendNotification({
-          userId: sellerId,
-          orderId,
-          title: "Payment Released",
-          message: "Buyer has confirmed delivery. Escrow funds have been released to your wallet.",
-          type: "ORDER_COMPLETED",
-        });
-      }
+      await sendNotification({
+        userId: sellerIdFromOrder,
+        orderId,
+        title: "Payment Released",
+        message: "Buyer has confirmed delivery. Escrow funds have been released to your wallet.",
+        type: "ORDER_COMPLETED",
+      });
 
       return NextResponse.json({ success: true });
     } catch (completionError) {

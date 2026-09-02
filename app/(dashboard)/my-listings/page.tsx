@@ -14,6 +14,7 @@ import {
   collection, query, where, onSnapshot, 
   deleteDoc, doc 
 } from "firebase/firestore";
+import { getListingAttr } from "@/lib/listings/utils";
 
 export default function MyListingsPage() {
   const { user } = useAuth();
@@ -44,6 +45,10 @@ export default function MyListingsPage() {
     hasShieldProtection?: boolean;
     views?: number;
     createdAt?: unknown;
+    gameId?: string;
+    accountType?: string;
+    gameAttributes?: Record<string, string | number | boolean>;
+    credentials?: Record<string, string | boolean>;
   }
 
   // Live Firestore listener for real-time user KYC verification status
@@ -132,21 +137,8 @@ export default function MyListingsPage() {
     if (!user?.uid) return;
 
     try {
-      const numericPrice = Number(newListingData.price) || 0;
-      const isFeatured = Boolean(newListingData.isFeatured);
-      const featureBoostFee = isFeatured ? Math.round(numericPrice * 0.05) : 0;
-      
       const payload = {
-        title: newListingData.title,
-        rank: newListingData.rank,
-        skinsCount: Number(newListingData.skinsCount),
-        heroesCount: Number(newListingData.heroesCount),
-        winRate: newListingData.winRate || "N/A",
-        featuredSkins: newListingData.featuredSkins || [],
-        price: numericPrice,
-        isFeatured,
-        featureBoostFee,
-        hasShieldHandover: true,
+        ...newListingData,
         sellerId: user.uid,
         sellerName: user.displayName || user.email?.split("@")[0] || "Anonymous",
         sellerVerified: isVerifiedSeller,
@@ -329,7 +321,11 @@ export default function MyListingsPage() {
                const images = Array.isArray(data.images) ? data.images : [];
                const status = typeof data.status === "string" ? data.status : "active";
                const sellerRatingVal = typeof data.sellerRating === "number" ? data.sellerRating : typeof data.sellerRating === "string" ? Number(data.sellerRating) : 5.0;
-               
+               const rank = (getListingAttr(data as never, "rank") as string | undefined) ?? "Unranked";
+               const skinsCount = Number(getListingAttr(data as never, "skinsCount") ?? 0);
+               const heroesCount = Number(getListingAttr(data as never, "heroesCount") ?? 0);
+               const winRate = (getListingAttr(data as never, "winRate") as string | undefined) || "N/A";
+
                return (
                 <div 
                   key={data.id} 
@@ -389,24 +385,24 @@ export default function MyListingsPage() {
                      </div>
                    )}
 
-                   <div className="grid grid-cols-4 gap-2 bg-[#151922] p-3 rounded-xl border border-[#242938] text-xs">
-                     <div>
-                       <span className="text-[#8A93A3] text-[11px] block font-medium">Rank</span>
-                       <span className="font-bold text-[#EDEFF2] truncate block">{data.rank || "Unranked"}</span>
-                     </div>
-                     <div>
-                       <span className="text-[#8A93A3] text-[11px] block font-medium">Skins</span>
-                       <span className="font-bold text-[#EDEFF2]">{data.skinsCount || 0}</span>
-                     </div>
-                     <div>
-                       <span className="text-[#8A93A3] text-[11px] block font-medium">Heroes</span>
-                       <span className="font-bold text-[#EDEFF2]">{data.heroesCount || 0}</span>
-                     </div>
-                     <div>
-                       <span className="text-[#8A93A3] text-[11px] block font-medium">Win Rate</span>
-                       <span className="font-bold text-emerald-400">{data.winRate || "N/A"}</span>
-                     </div>
-                   </div>
+<div className="grid grid-cols-4 gap-2 bg-[#151922] p-3 rounded-xl border border-[#242938] text-xs">
+                      <div>
+                        <span className="text-[#8A93A3] text-[11px] block font-medium">Rank</span>
+                        <span className="font-bold text-[#EDEFF2] truncate block">{rank}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#8A93A3] text-[11px] block font-medium">Skins</span>
+                        <span className="font-bold text-[#EDEFF2]">{skinsCount}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#8A93A3] text-[11px] block font-medium">Heroes</span>
+                        <span className="font-bold text-[#EDEFF2]">{heroesCount}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#8A93A3] text-[11px] block font-medium">Win Rate</span>
+                        <span className="font-bold text-emerald-400">{winRate}</span>
+                      </div>
+                    </div>
                  </div>
 
                  <div className="pt-3 border-t border-[#242938] flex items-center justify-between gap-4">

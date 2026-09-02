@@ -26,7 +26,8 @@ import {
   TrendingUp,
   Eye,
   Edit3,
-  Trash2
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot, deleteDoc } from "firebase/firestore";
@@ -73,6 +74,7 @@ type Listing = {
   gameId?: string;
   gameName?: string;
   gameAttributes?: Record<string, string | number | boolean>;
+  credentials?: Record<string, unknown>;
   status?: string;
   images?: string[];
   description?: string;
@@ -93,6 +95,94 @@ const formatAttributeLabel = (attr: string) => {
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (str) => str.toUpperCase())
     .trim();
+};
+
+/**
+ * Format credential key to readable label
+ * e.g., "tiktokBoundStatus" -> "TikTok Bound Status"
+ */
+const formatCredentialLabel = (key: string) => {
+  // Handle specific known keys
+  if (key === "vkBoundStatus") return "VKontakte (VK) Status";
+  if (key === "facebookBoundStatus") return "Facebook Account Status";
+  if (key === "tiktokBoundStatus") return "TikTok Account Status";
+  if (key === "linkedAccount") return "Linked Account";
+  if (key === "moontonStatus") return "Moonton Account Status";
+  if (key === "riotAccountStatus") return "Riot Account Status";
+  if (key === "steamStatus") return "Steam Account Status";
+  if (key === "epicGamesStatus") return "Epic Games Status";
+  if (key === "supercellIdStatus") return "Supercell ID Status";
+  if (key === "emailChangeAvailability") return "Email Change Availability";
+  if (key === "linkedSocials") return "Linked Socials";
+  if (key === "ownershipType") return "Account Ownership";
+  if (key === "region") return "Region";
+  if (key === "primeStatus") return "Prime Status";
+  if (key === "platform") return "Platform";
+  
+  // Fallback: convert camelCase to Title Case
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase())
+    .trim();
+};
+
+/**
+ * Determine styling color based on credential value
+ * Green for Unbound/Clean, Amber/Yellow for Bound/Warning
+ */
+const getSecurityStatusColor = (value: unknown): string => {
+  if (!value) return "text-[#8A93A3]"; // Default gray for empty
+  
+  const valueStr = String(value).toLowerCase();
+  
+  // Check for unbound/clean status
+  if (valueStr.includes("unbound") || valueStr.includes("clean") || valueStr.includes("available")) {
+    return "text-emerald-400";
+  }
+  
+  // Check for bound/warning status
+  if (valueStr.includes("bound") || valueStr.includes("handing") || valueStr.includes("not available") || valueStr.includes("pending")) {
+    return "text-amber-400";
+  }
+  
+  // Default fallback
+  return "text-[#EDEFF2]";
+};
+
+/**
+ * Get security status icon based on value
+ */
+const getSecurityStatusIcon = (value: unknown) => {
+  if (!value) return <Check size={14} />;
+  
+  const valueStr = String(value).toLowerCase();
+  
+  if (valueStr.includes("unbound") || valueStr.includes("clean") || valueStr.includes("available")) {
+    return <Check size={14} />;
+  }
+  
+  if (valueStr.includes("bound") || valueStr.includes("handing") || valueStr.includes("not available") || valueStr.includes("pending")) {
+    return <AlertTriangle size={14} />;
+  }
+  
+  return <Check size={14} />;
+};
+
+/**
+ * Filter out sensitive credential keys that should never be rendered
+ */
+const excludedCredentialKeys = [
+  "accountPassword",
+  "secondaryPassword",
+  "primaryPassword",
+  "password",
+  "email",
+  "accountEmail",
+  "primaryEmail",
+];
+
+const shouldExcludeCredential = (key: string): boolean => {
+  return excludedCredentialKeys.some((excluded) => key.toLowerCase().includes(excluded));
 };
 
 export default function MyListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -368,37 +458,63 @@ export default function MyListingDetailPage({ params }: { params: Promise<{ id: 
             )}
 
             {activeTab === "binds" && (
-              <div className="bg-[#151922] border border-[#242938] p-6 rounded-2xl space-y-4">
-                <h3 className="font-bold text-sm text-[#EDEFF2]">Account Bind & Security Checklist</h3>
+              <div className="bg-gradient-to-br from-[#0B2F1F] via-[#0D3D26] to-[#0A2818] border border-emerald-500/40 p-6 rounded-2xl space-y-4 shadow-lg shadow-emerald-500/10">
+                <div className="space-y-1.5">
+                  <h3 className="font-bold text-lg uppercase tracking-wider text-emerald-400">
+                    ⚡ ACCOUNT BIND & SECURITY CHECKLIST
+                  </h3>
+                  <div className="w-8 h-0.5 bg-gradient-to-r from-emerald-500 to-emerald-300 rounded-full"></div>
+                </div>
                 
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between p-3 bg-[#0B0E14] rounded-xl border border-[#242938]">
-                    <span className="text-xs text-[#EDEFF2]">Linked Accounts Unbound / Transferable</span>
-                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                      <Check size={14} /> Available
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-[#0B0E14] rounded-xl border border-[#242938]">
-                    <span className="text-xs text-[#EDEFF2]">Associated Gmail / Recovery Included</span>
-                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                      <Check size={14} /> Yes (Full Access)
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-[#0B0E14] rounded-xl border border-[#242938]">
-                    <span className="text-xs text-[#EDEFF2]">TikTok / Facebook Binds</span>
-                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                      <Check size={14} /> Clean / Disconnected
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-[#0B0E14] rounded-xl border border-[#242938]">
-                    <span className="text-xs text-[#EDEFF2]">Rebind Cooldown</span>
-                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                      <Check size={14} /> 0 Days (Instant Change)
-                    </span>
-                  </div>
+                <div className="space-y-2 pt-2">
+                  {(() => {
+                    // Filter and map credentials from listing.credentials
+                    const credentials = listing?.credentials || {};
+                    const securityEntries = Object.entries(credentials)
+                      .filter(([key]) => !shouldExcludeCredential(key))
+                      .map(([key, value]) => ({ key, value }));
+                    
+                    // Empty state fallback
+                    if (securityEntries.length === 0) {
+                      return (
+                        <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl hover:border-emerald-500/50 transition-all">
+                          <span className="text-xs font-bold uppercase tracking-wide text-emerald-300">✓ STANDARD SECURITY TRANSFER</span>
+                          <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                            <Check size={14} /> NO BIND DATA
+                          </span>
+                        </div>
+                      );
+                    }
+                    
+                    // Dynamic rendering of security entries
+                    return securityEntries.map(({ key, value }) => {
+                      const displayLabel = formatCredentialLabel(key);
+                      const displayValue = String(value || "Not Specified").toUpperCase();
+                      const statusColor = getSecurityStatusColor(value);
+                      const statusIcon = getSecurityStatusIcon(value);
+                      const isGreenStatus = statusColor === "text-emerald-400";
+                      
+                      return (
+                        <div
+                          key={key}
+                          className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                            isGreenStatus
+                              ? "bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-500/60"
+                              : "bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50"
+                          }`}
+                        >
+                          <span className="text-xs font-semibold uppercase tracking-wide text-[#E8F5E9]">
+                            {displayLabel}
+                          </span>
+                          <span className={`text-xs font-bold flex items-center gap-1.5 tracking-wide ${
+                            isGreenStatus ? "text-emerald-400" : "text-amber-400"
+                          }`}>
+                            {statusIcon} {displayValue}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             )}

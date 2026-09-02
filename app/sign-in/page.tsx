@@ -11,7 +11,8 @@ import {
   signInWithRedirect,
   getRedirectResult
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -32,8 +33,20 @@ export default function SignInPage() {
     if (!auth) return;
 
     getRedirectResult(auth)
-      .then((result) => {
+      .then(async (result) => {
         if (result?.user) {
+          // Ensure Google redirect sign-ins also sync user data to Firestore
+          const googleUser = result.user;
+          const userRef = doc(db, "users", googleUser.uid);
+          await setDoc(userRef, {
+            uid: googleUser.uid,
+            email: googleUser.email || "",
+            displayName: googleUser.displayName || "User",
+            photoURL: googleUser.photoURL || "",
+            phoneNumber: googleUser.phoneNumber || "",
+            createdAt: new Date().toISOString(),
+          }, { merge: true });
+
           setSuccess("Login successful! Redirecting...");
         }
       })
@@ -104,10 +117,10 @@ export default function SignInPage() {
     const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     try {
+      let result;
       if (isMobile) {
         try {
-          await signInWithPopup(auth, provider);
-          setSuccess("Login successful! Redirecting...");
+          result = await signInWithPopup(auth, provider);
         } catch (popupErr) {
           const error = popupErr as { code?: string };
           if (
@@ -115,14 +128,29 @@ export default function SignInPage() {
             error.code === "auth/operation-not-supported-in-this-environment"
           ) {
             await signInWithRedirect(auth, provider);
+            return;
           } else {
             throw popupErr;
           }
         }
       } else {
-        await signInWithPopup(auth, provider);
-        setSuccess("Login successful! Redirecting...");
+        result = await signInWithPopup(auth, provider);
       }
+
+      if (result?.user) {
+        const googleUser = result.user;
+        const userRef = doc(db, "users", googleUser.uid);
+        await setDoc(userRef, {
+          uid: googleUser.uid,
+          email: googleUser.email || "",
+          displayName: googleUser.displayName || "User",
+          photoURL: googleUser.photoURL || "",
+          phoneNumber: googleUser.phoneNumber || "",
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+      }
+
+      setSuccess("Login successful! Redirecting...");
     } catch (err) {
       const error = err as { message?: string; code?: string };
       const isNetworkError =
