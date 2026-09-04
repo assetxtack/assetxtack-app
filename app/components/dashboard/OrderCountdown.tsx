@@ -56,52 +56,38 @@ export default function OrderCountdown({
   const [isReady, setIsReady] = useState(false);
 
   const referenceTimeRef = useRef<number | null>(null);
-  const statusRef = useRef(status);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (status !== statusRef.current) {
-      statusRef.current = status;
-      referenceTimeRef.current = null;
-      setIsReady(false);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-  }, [status]);
-
-  useEffect(() => {
-    let rawReferenceTime =
+    const rawReferenceTime =
       status === "AWAITING_CREDENTIALS"
         ? paymentVerifiedAt || paidAt || createdAt
         : credentialsDeliveredAt;
 
-    let parsed = parseTimestamp(rawReferenceTime);
+    const parsed = parseTimestamp(rawReferenceTime);
 
-    // Fallback safety: if still null, default to current time so the UI renders immediately instead of hanging
-    if (!parsed) {
+    if (parsed) {
+      referenceTimeRef.current = parsed;
+      try {
+        localStorage.setItem(`countdown-${orderId}-${status}`, String(parsed));
+      } catch {
+        // localStorage may be unavailable in some environments
+      }
+      setIsReady(true);
+      return;
+    }
+
+    if (!referenceTimeRef.current) {
       try {
         const stored = localStorage.getItem(`countdown-${orderId}-${status}`);
         if (stored) {
-          parsed = Number(stored);
+          referenceTimeRef.current = Number(stored);
+          setIsReady(true);
         }
       } catch {
-        // localStorage fallback
+        // localStorage may be unavailable in some environments
       }
     }
-
-    if (!parsed) {
-      parsed = Date.now(); // Ultimate fallback so it never stays stuck on loading
-    }
-
-    referenceTimeRef.current = parsed;
-    try {
-      localStorage.setItem(`countdown-${orderId}-${status}`, String(parsed));
-    } catch {
-      // localStorage may be unavailable
-    }
-    setIsReady(true);
   }, [status, paymentVerifiedAt, credentialsDeliveredAt, createdAt, paidAt, orderId]);
 
   useEffect(() => {
