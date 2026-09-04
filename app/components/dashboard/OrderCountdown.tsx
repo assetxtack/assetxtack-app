@@ -9,6 +9,8 @@ interface OrderCountdownProps {
   status: "AWAITING_CREDENTIALS" | "INSPECTION_PERIOD";
   paymentVerifiedAt?: string | Date | null;
   credentialsDeliveredAt?: string | Date | null;
+  createdAt?: string | Date | null;
+  paidAt?: string | Date | null;
   isBuyer: boolean;
   isSeller: boolean;
   orderId: string;
@@ -43,6 +45,8 @@ export default function OrderCountdown({
   status,
   paymentVerifiedAt,
   credentialsDeliveredAt,
+  createdAt,
+  paidAt,
   isBuyer,
   isSeller,
   orderId,
@@ -68,36 +72,37 @@ export default function OrderCountdown({
   }, [status]);
 
   useEffect(() => {
-    const rawReferenceTime =
+    let rawReferenceTime =
       status === "AWAITING_CREDENTIALS"
-        ? paymentVerifiedAt
+        ? paymentVerifiedAt || paidAt || createdAt
         : credentialsDeliveredAt;
 
-    const parsed = parseTimestamp(rawReferenceTime);
+    let parsed = parseTimestamp(rawReferenceTime);
 
-    if (parsed) {
-      referenceTimeRef.current = parsed;
-      try {
-        localStorage.setItem(`countdown-${orderId}-${status}`, String(parsed));
-      } catch {
-        // localStorage may be unavailable in some environments
-      }
-      setIsReady(true);
-      return;
-    }
-
-    if (!referenceTimeRef.current) {
+    // Fallback safety: if still null, default to current time so the UI renders immediately instead of hanging
+    if (!parsed) {
       try {
         const stored = localStorage.getItem(`countdown-${orderId}-${status}`);
         if (stored) {
-          referenceTimeRef.current = Number(stored);
-          setIsReady(true);
+          parsed = Number(stored);
         }
       } catch {
-        // localStorage may be unavailable in some environments
+        // localStorage fallback
       }
     }
-  }, [status, paymentVerifiedAt, credentialsDeliveredAt, orderId]);
+
+    if (!parsed) {
+      parsed = Date.now(); // Ultimate fallback so it never stays stuck on loading
+    }
+
+    referenceTimeRef.current = parsed;
+    try {
+      localStorage.setItem(`countdown-${orderId}-${status}`, String(parsed));
+    } catch {
+      // localStorage may be unavailable
+    }
+    setIsReady(true);
+  }, [status, paymentVerifiedAt, credentialsDeliveredAt, createdAt, paidAt, orderId]);
 
   useEffect(() => {
     if (!isReady || referenceTimeRef.current === null) return;
