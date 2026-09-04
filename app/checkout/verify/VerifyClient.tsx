@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
@@ -14,6 +14,9 @@ export default function CheckoutVerifyClient() {
   const { user } = useAuth();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [countdown, setCountdown] = useState(15);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -102,9 +105,8 @@ export default function CheckoutVerifyClient() {
 
         setStatus("success");
         setMessage("Payment verified and order created successfully!");
-        setTimeout(() => {
-          router.push(`/orders/${createData.orderId}`);
-        }, 2000);
+        setOrderId(createData.orderId);
+        setCountdown(15);
       } catch {
         setStatus("error");
         setMessage("An error occurred during verification. Please contact support.");
@@ -113,6 +115,30 @@ export default function CheckoutVerifyClient() {
 
     verifyPayment();
   }, [searchParams, router, user]);
+
+  useEffect(() => {
+    if (status !== "success") return;
+
+    if (countdown <= 0) {
+      if (orderId) {
+        router.push(`/orders/${orderId}`);
+      } else {
+        router.push("/marketplace");
+      }
+      return;
+    }
+
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+    };
+  }, [status, countdown, router, orderId]);
 
   return (
     <AuthGuard>
@@ -129,6 +155,10 @@ export default function CheckoutVerifyClient() {
               <CheckCircle className="text-emerald-400 mx-auto" size={48} />
               <h1 className="text-lg font-bold text-[#EDEFF2]">Payment Verified</h1>
               <p className="text-xs text-[#8A93A3]">{message}</p>
+              <p className="text-xs text-[#8A93A3]">
+                Redirecting to your trade chat in{" "}
+                <span className="font-mono font-bold text-[#FFB020]">{countdown}</span>s
+              </p>
             </>
           )}
           {status === "error" && (
