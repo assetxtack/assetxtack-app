@@ -13,7 +13,7 @@ export default function CheckoutVerifyPage() {
   const { user } = useAuth();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
-  const [countdown, setCountdown] = useState(15);
+  const [countdown, setCountdown] = useState(5);
   const [orderId, setOrderId] = useState<string | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -156,7 +156,7 @@ export default function CheckoutVerifyPage() {
               <h1 className="text-lg font-bold text-[#EDEFF2]">Payment Verified</h1>
               <p className="text-xs text-[#8A93A3]">{message}</p>
               <p className="text-xs text-[#8A93A3]">
-                Redirecting to your trade chat in{" "}
+                Redirecting to your order in{" "}
                 <span className="font-mono font-bold text-[#FFB020]">{countdown}</span>s
               </p>
             </>
