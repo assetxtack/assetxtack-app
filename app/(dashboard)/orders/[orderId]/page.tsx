@@ -41,6 +41,12 @@ export default function OrderDashboardPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Prevent SSR hydration mismatches with dynamic elements/timers on Vercel
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const currentUserId = user?.uid ?? "";
   const currentUserName = user?.displayName || user?.email?.split("@")[0] || "AssetXtack User";
@@ -201,6 +207,19 @@ export default function OrderDashboardPage() {
 
   const isAwaitingCredentials = order?.status === "AWAITING_CREDENTIALS" || order?.status === "IN_ESCROW";
   const isInspectionPeriod = order?.status === "INSPECTION_PERIOD" || order?.status === "DELIVERED";
+
+  // Prevent layout shifts during SSR hydration phase
+  if (!isMounted) {
+    return (
+      <AuthGuard>
+        <main className="p-6 max-w-7xl mx-auto space-y-6">
+          <div className="p-12 bg-[#151922] border border-[#242938] rounded-2xl text-center text-zinc-400">
+            Loading secure vault session...
+          </div>
+        </main>
+      </AuthGuard>
+    );
+  }
 
   return (
     <AuthGuard>
