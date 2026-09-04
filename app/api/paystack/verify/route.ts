@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     const currency = dataInner?.currency;
     const paidAt = dataInner?.paid_at;
     const customer = dataInner?.customer;
+    const metadata = dataInner?.metadata as Record<string, unknown> | undefined;
 
     if (response.status === 404 || String(status).toLowerCase() === "failed") {
       console.warn("Paystack transaction not found or failed:", { reference, status, response: data });
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
       paidAt,
       customer,
       reference,
+      metadata,
     });
   } catch (error) {
     console.error("Paystack verify exception:", error);

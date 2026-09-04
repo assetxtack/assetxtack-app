@@ -1,4 +1,4 @@
-import { resend } from "./resend";
+import { sendEmail } from "./dispatch";
 import DisputeOpenedEmail from "./templates/DisputeOpenedEmail";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 
@@ -11,7 +11,7 @@ export async function sendDisputeEmail({
   orderId: string;
   listingTitle: string;
 }) {
-  if (!process.env.RESEND_API_KEY || !userId) {
+  if (!userId) {
     return;
   }
 
@@ -26,22 +26,9 @@ export async function sendDisputeEmail({
     const email = String(userData.email || "").trim();
     if (!email) return;
 
-    const fromEmail = String(process.env.RESEND_FROM_EMAIL || "AssetXtack <notifications@assetxtack.com>");
     const orderUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/orders/${orderId}`;
 
-    const payload = {
-      from: fromEmail,
-      to: email,
-      subject: `Dispute opened for "${listingTitle}"`,
-      orderId,
-      listingTitle,
-      orderUrl,
-    };
-
-    console.log("Resend Payload:", payload);
-
-    await resend.emails.send({
-      from: fromEmail,
+    await sendEmail({
       to: email,
       subject: `Dispute opened for "${listingTitle}"`,
       react: (
@@ -54,7 +41,6 @@ export async function sendDisputeEmail({
       ),
     });
   } catch (error) {
-    console.error("Resend Error Details:", error);
-    console.error("Failed to send dispute email:", error);
+    console.error(`Failed to send dispute email for order ${orderId}:`, error);
   }
 }

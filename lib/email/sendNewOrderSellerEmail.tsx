@@ -1,4 +1,4 @@
-import { resend } from "./resend";
+import { sendEmail } from "./dispatch";
 import NewOrderSellerEmail from "./templates/NewOrderSellerEmail";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 
@@ -13,7 +13,7 @@ export async function sendNewOrderSellerEmail({
   title: string;
   amount: number;
 }) {
-  if (!process.env.RESEND_API_KEY || !sellerId) {
+  if (!sellerId) {
     return;
   }
 
@@ -28,21 +28,9 @@ export async function sendNewOrderSellerEmail({
     const email = String(userData.email || "").trim();
     if (!email) return;
 
-    const fromEmail = String(process.env.RESEND_FROM_EMAIL || "AssetXtack <notifications@assetxtack.com>");
+    const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/orders/${orderId}`;
 
-    const payload = {
-      from: fromEmail,
-      to: email,
-      subject: `Payment secured for "${title}"`,
-      orderId,
-      title,
-      amount,
-    };
-
-    console.log("Resend Payload:", payload);
-
-    await resend.emails.send({
-      from: fromEmail,
+    await sendEmail({
       to: email,
       subject: `Payment secured for "${title}"`,
       react: (
@@ -51,12 +39,11 @@ export async function sendNewOrderSellerEmail({
           orderId={orderId}
           listingTitle={title}
           payoutAmount={amount}
-          dashboardUrl={`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/orders/${orderId}`}
+          dashboardUrl={dashboardUrl}
         />
       ),
     });
   } catch (error) {
-    console.error("Resend Error Details:", error);
-    console.error("Failed to send new order seller email:", error);
+    console.error(`Failed to send new-order seller email for order ${orderId}:`, error);
   }
 }

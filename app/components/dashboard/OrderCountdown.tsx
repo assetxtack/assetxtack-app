@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clock, AlertTriangle, ShieldCheck, Timer } from "lucide-react";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -11,6 +11,7 @@ interface OrderCountdownProps {
   credentialsDeliveredAt?: string | Date | null;
   isBuyer: boolean;
   isSeller: boolean;
+  orderId: string;
 }
 
 function parseTimestamp(ts: unknown): number | null {
@@ -44,9 +45,27 @@ export default function OrderCountdown({
   credentialsDeliveredAt,
   isBuyer,
   isSeller,
+  orderId,
 }: OrderCountdownProps) {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isExpired, setIsExpired] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+
+  const referenceTimeRef = useRef<number | null>(null);
+  const statusRef = useRef(status);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (status !== statusRef.current) {
+      statusRef.current = status;
+      referenceTimeRef.current = null;
+      setIsReady(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  }, [status]);
 
   useEffect(() => {
     const rawReferenceTime =
@@ -54,23 +73,64 @@ export default function OrderCountdown({
         ? paymentVerifiedAt
         : credentialsDeliveredAt;
 
-    let referenceTime = parseTimestamp(rawReferenceTime);
-    if (!referenceTime) {
-      referenceTime = Date.now();
+    const parsed = parseTimestamp(rawReferenceTime);
+
+    if (parsed) {
+      referenceTimeRef.current = parsed;
+      try {
+        localStorage.setItem(`countdown-${orderId}-${status}`, String(parsed));
+      } catch {
+        // localStorage may be unavailable in some environments
+      }
+      setIsReady(true);
+      return;
     }
+
+    if (!referenceTimeRef.current) {
+      try {
+        const stored = localStorage.getItem(`countdown-${orderId}-${status}`);
+        if (stored) {
+          referenceTimeRef.current = Number(stored);
+          setIsReady(true);
+        }
+      } catch {
+        // localStorage may be unavailable in some environments
+      }
+    }
+  }, [status, paymentVerifiedAt, credentialsDeliveredAt, orderId]);
+
+  useEffect(() => {
+    if (!isReady || referenceTimeRef.current === null) return;
 
     const calculateRemaining = () => {
       const now = Date.now();
-      const elapsed = now - referenceTime;
+      const elapsed = now - referenceTimeRef.current!;
       const remaining = TWENTY_FOUR_HOURS_MS - elapsed;
       setTimeRemaining(remaining);
       setIsExpired(remaining <= 0);
     };
 
     calculateRemaining();
-    const interval = setInterval(calculateRemaining, 1000);
-    return () => clearInterval(interval);
-  }, [status, paymentVerifiedAt, credentialsDeliveredAt]);
+    intervalRef.current = setInterval(calculateRemaining, 1000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isReady]);
+
+  if (!isReady) {
+    return (
+      <div className="p-4 rounded-2xl border border-[#242938] bg-[#151922]">
+        <div className="flex items-center gap-2">
+          <Timer size={16} className="text-amber-400" />
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Loading timer...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (status === "AWAITING_CREDENTIALS") {
     return (

@@ -266,6 +266,7 @@ export default function OrderDashboardPage() {
                     credentialsDeliveredAt={order?.credentialsDeliveredAt}
                     isBuyer={isBuyer}
                     isSeller={isSeller}
+                    orderId={Array.isArray(orderId) ? orderId[0] : orderId}
                   />
                 )}
                 {isBuyer && credentialFields.length > 0 && (

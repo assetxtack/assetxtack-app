@@ -1,4 +1,4 @@
-import { resend } from "./resend";
+import { sendEmail } from "./dispatch";
 import UrgentReminderEmail from "./templates/UrgentReminderEmail";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 
@@ -13,7 +13,7 @@ export async function sendUrgentReminderEmail({
   listingTitle: string;
   hoursRemaining: number;
 }) {
-  if (!process.env.RESEND_API_KEY || !userId) {
+  if (!userId) {
     return;
   }
 
@@ -28,23 +28,9 @@ export async function sendUrgentReminderEmail({
     const email = String(userData.email || "").trim();
     if (!email) return;
 
-    const fromEmail = String(process.env.RESEND_FROM_EMAIL || "AssetXtack <notifications@assetxtack.com>");
     const orderUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/orders/${orderId}`;
 
-    const payload = {
-      from: fromEmail,
-      to: email,
-      subject: `Urgent reminder: ${hoursRemaining}h remaining for "${listingTitle}"`,
-      orderId,
-      listingTitle,
-      hoursRemaining,
-      orderUrl,
-    };
-
-    console.log("Resend Payload:", payload);
-
-    await resend.emails.send({
-      from: fromEmail,
+    await sendEmail({
       to: email,
       subject: `Urgent reminder: ${hoursRemaining}h remaining for "${listingTitle}"`,
       react: (
@@ -58,7 +44,6 @@ export async function sendUrgentReminderEmail({
       ),
     });
   } catch (error) {
-    console.error("Resend Error Details:", error);
-    console.error("Failed to send urgent reminder email:", error);
+    console.error(`Failed to send urgent reminder email for order ${orderId}:`, error);
   }
 }

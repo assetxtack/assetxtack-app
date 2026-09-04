@@ -1,4 +1,4 @@
-import { resend } from "./resend";
+import { sendEmail } from "./dispatch";
 import CredentialsDeliveredEmail from "./templates/CredentialsDeliveredEmail";
 
 export async function sendCredentialsDeliveredEmail({
@@ -10,27 +10,14 @@ export async function sendCredentialsDeliveredEmail({
   orderId: string;
   listingTitle: string;
 }) {
-  if (!process.env.RESEND_API_KEY || !buyerEmail) {
+  if (!buyerEmail) {
     return;
   }
 
   try {
-    const fromEmail = String(process.env.RESEND_FROM_EMAIL || "AssetXtack <notifications@assetxtack.com>");
     const orderUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/orders/${orderId}`;
 
-    const payload = {
-      from: fromEmail,
-      to: buyerEmail,
-      subject: `Credentials delivered for "${listingTitle}"`,
-      orderId,
-      listingTitle,
-      orderUrl,
-    };
-
-    console.log("Resend Payload:", payload);
-
-    await resend.emails.send({
-      from: fromEmail,
+    await sendEmail({
       to: buyerEmail,
       subject: `Credentials delivered for "${listingTitle}"`,
       react: (
@@ -43,7 +30,6 @@ export async function sendCredentialsDeliveredEmail({
       ),
     });
   } catch (error) {
-    console.error("Resend Error Details:", error);
-    console.error("Failed to send credentials delivered email:", error);
+    console.error(`Failed to send credentials-delivered email for order ${orderId}:`, error);
   }
 }

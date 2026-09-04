@@ -1,4 +1,4 @@
-import { resend } from "./resend";
+import { sendEmail } from "./dispatch";
 import OrderCompletedEmail from "./templates/OrderCompletedEmail";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 
@@ -13,7 +13,7 @@ export async function sendOrderCompletedEmail({
   listingTitle: string;
   payoutAmount: number;
 }) {
-  if (!process.env.RESEND_API_KEY || !sellerId) {
+  if (!sellerId) {
     return;
   }
 
@@ -28,29 +28,9 @@ export async function sendOrderCompletedEmail({
     const email = String(userData.email || "").trim();
     if (!email) return;
 
-    const fromEmail = String(process.env.RESEND_FROM_EMAIL || "AssetXtack <notifications@assetxtack.com>");
     const walletUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/wallet`;
 
-    const formattedAmount = new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 2,
-    }).format(payoutAmount);
-
-    const payload = {
-      from: fromEmail,
-      to: email,
-      subject: `Order completed for "${listingTitle}"`,
-      orderId,
-      listingTitle,
-      payoutAmount: formattedAmount,
-      walletUrl,
-    };
-
-    console.log("Resend Payload:", payload);
-
-    await resend.emails.send({
-      from: fromEmail,
+    await sendEmail({
       to: email,
       subject: `Order completed for "${listingTitle}"`,
       react: (
@@ -64,7 +44,6 @@ export async function sendOrderCompletedEmail({
       ),
     });
   } catch (error) {
-    console.error("Resend Error Details:", error);
-    console.error("Failed to send order completed email:", error);
+    console.error(`Failed to send order-completed email for order ${orderId}:`, error);
   }
 }
