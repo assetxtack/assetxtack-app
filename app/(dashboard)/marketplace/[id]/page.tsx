@@ -207,6 +207,9 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
   const [paymentModalLocked, setPaymentModalLocked] = useState(false);
   const [currentPaymentReference, setCurrentPaymentReference] = useState<string | null>(null);
   const [isAgreed, setIsAgreed] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
+  const [successCountdown, setSuccessCountdown] = useState(8);
 
   useEffect(() => {
     if (!resolvedParams?.id) return;
@@ -256,6 +259,27 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
       setCurrentPaymentReference(null);
     };
   }, []);
+
+  useEffect(() => {
+    if (!paymentSuccess || !successOrderId) return;
+    setSuccessCountdown(8);
+    const timer = setInterval(() => {
+      setSuccessCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [paymentSuccess, successOrderId]);
+
+  const handleCountdownComplete = () => {
+    if (successOrderId) {
+      router.push(`/orders/${successOrderId}`);
+    }
+  };
 
   const formatNaira = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -379,6 +403,8 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
               }
 
               setShowPaymentModal(false);
+              setPaymentSuccess(true);
+              setSuccessOrderId(createData.orderId);
               setPurchasedListingIds((prev) => new Set(prev).add(listing.id));
             } catch (dbError) {
               const errorMessage = dbError instanceof Error ? dbError.message : "Unknown error";
@@ -462,6 +488,34 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
     <AuthGuard>
       <div className="space-y-6 max-w-6xl mx-auto pb-12">
         
+        {/* Payment Success Modal */}
+        {paymentSuccess && successOrderId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-[#151922] border border-emerald-500/30 rounded-3xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-fadeIn">
+              <div className="w-20 h-20 rounded-full bg-emerald-500/10 border-2 border-emerald-500 flex items-center justify-center mx-auto">
+                <CheckCircle className="text-emerald-400" size={40} />
+              </div>
+              
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-[#EDEFF2]">Payment Successful</h2>
+                <p className="text-xs text-[#8A93A3]">Your escrow order has been created. The seller will now deliver the account credentials.</p>
+              </div>
+
+              <div className="bg-[#0B0E14] border border-[#242938] rounded-xl p-4">
+                <p className="text-[10px] uppercase font-bold text-[#8A93A3] mb-1">Redirecting in</p>
+                <p className="text-3xl font-black text-[#FFB020] font-mono">{successCountdown}</p>
+              </div>
+
+              <button
+                onClick={handleCountdownComplete}
+                className="w-full py-3.5 rounded-xl bg-emerald-500 text-[#0B0E14] font-bold text-xs hover:bg-emerald-400 transition-colors shadow-lg"
+              >
+                Go to Trade Chat Now
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Payment Preview Modal */}
         {showPaymentModal && listing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">

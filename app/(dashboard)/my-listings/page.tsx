@@ -133,28 +133,21 @@ export default function MyListingsPage() {
   };
 
   // Add new listing to Firestore with skin tags & featured boost
-  const handleAddListing = async (newListingData: Record<string, unknown>) => {
+  const handleAddListing = async (newListingData: Record<string, unknown>, newId: string) => {
     if (!user?.uid) return;
 
     try {
       const payload = {
         ...newListingData,
+        id: newId,
         sellerId: user.uid,
         sellerName: user.displayName || user.email?.split("@")[0] || "Anonymous",
         sellerVerified: isVerifiedSeller,
       };
 
-      const res = await fetch("/api/listings/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to create listing");
-      }
+      setListings((prev) => [payload as Record<string, unknown>, ...prev]);
     } catch (error) {
-      console.error("Error creating listing in Firestore:", error);
+      console.error("Error adding listing to local state:", error);
     }
   };
 
