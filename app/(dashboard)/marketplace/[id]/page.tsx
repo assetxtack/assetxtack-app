@@ -395,7 +395,90 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
         throw new Error("Paystack public key is not configured");
       }
 
-      const handler = (window as unknown as Record<string, unknown> & { PaystackPop: { setup: (config: Record<string, unknown>) => { openIframe: () => void } } }).PaystackPop.setup({
+      const onCloseHandler = () => {
+        setPaymentProcessing(false);
+        setPaymentModalLocked(false);
+        setCurrentPaymentReference(null);
+      };
+
+      const callbackHandler = async (response: { reference: string }) => {
+        try {
+          const verificationResponse = await fetch("/api/paystack/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reference: response.reference, listingId: listing.id }),
+          });
+
+          const verificationData = await verificationResponse.json();
+
+          if (verificationData.success) {
+            setVerifiedPayments((prev) => new Set(prev).add(response.reference));
+
+            if (!user?.uid || !listing) {
+              setPurchaseError("Session expired. Please refresh and try again.");
+              setPaymentProcessing(false);
+              setPaymentModalLocked(false);
+              return;
+            }
+
+            try {
+              const sellerName = listing.seller || listing.sellerName || "Seller";
+
+              const createResponse = await fetch("/api/orders/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  listingId: listing.id,
+                  title: listing.title,
+                  amount: listing.price,
+                  sellerName,
+                  sellerId: listing.sellerId,
+                  sellerVerified: listing.sellerVerified ?? false,
+                  hasShieldProtection: listing.hasShieldProtection ?? listing.sellerVerified ?? false,
+                  listingPlan: listing.listingPlan || (listing.hasShieldProtection ? "shield" : "standard"),
+                  buyerId: user.uid,
+                  rank: listing.rank,
+                  skinsCount: listing.skins ?? listing.skinsCount ?? 0,
+                  paymentReference: response.reference,
+                }),
+              });
+
+              const createData = await createResponse.json();
+
+              if (!createResponse.ok || !createData.success) {
+                const errorMsg = createData.error || createData.details || "Failed to create order";
+                console.error("Order creation failed. API error:", createData.error, "Full response:", createData);
+                throw new Error(errorMsg);
+              }
+
+              setShowPaymentModal(false);
+              setPaymentSuccess(true);
+              setSuccessOrderId(createData.orderId);
+              setPurchasedListingIds((prev) => new Set(prev).add(listing.id));
+            } catch (dbError) {
+              const errorMessage = dbError instanceof Error ? dbError.message : "Unknown error";
+              console.error("Failed to create order after payment:", dbError);
+              setPurchaseError(`Payment verified, but order creation failed: ${errorMessage}. Please contact support with your reference.`);
+            } finally {
+              setPaymentProcessing(false);
+              setPaymentModalLocked(false);
+              setCurrentPaymentReference(null);
+            }
+          } else if (verificationData.error) {
+            setPurchaseError(verificationData.error);
+            setPaymentProcessing(false);
+            setPaymentModalLocked(false);
+            setCurrentPaymentReference(null);
+          }
+        } catch {
+          setPurchaseError("Payment verified, but order creation failed. Please contact support.");
+          setPaymentProcessing(false);
+          setPaymentModalLocked(false);
+          setCurrentPaymentReference(null);
+        }
+      };
+
+      const paystackConfig = {
         key: publicKey,
         email: paystackEmail,
         amount: Math.round(amountToCharge * 100),
@@ -406,88 +489,17 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
           buyerId: user!.uid,
           sellerId: listing.sellerId,
         },
-        onClose: () => {
-          setPaymentProcessing(false);
-          setPaymentModalLocked(false);
-          setCurrentPaymentReference(null);
-        },
-        callback: async (response: { reference: string }) => {
-          try {
-            const verificationResponse = await fetch("/api/paystack/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ reference: response.reference, listingId: listing.id }),
-            });
+        onClose: onCloseHandler,
+        callback: callbackHandler,
+      };
 
-            const verificationData = await verificationResponse.json();
+      const paystackWindow = window as unknown as Record<string, unknown> & {
+        PaystackPop: {
+          setup: (config: Record<string, unknown>) => { openIframe: () => void };
+        };
+      };
 
-            if (verificationData.success) {
-              setVerifiedPayments((prev) => new Set(prev).add(response.reference));
-
-              if (!user?.uid || !listing) {
-                setPurchaseError("Session expired. Please refresh and try again.");
-                setPaymentProcessing(false);
-                setPaymentModalLocked(false);
-                return;
-              }
-
-              try {
-                const sellerName = listing.seller || listing.sellerName || "Seller";
-
-                const createResponse = await fetch("/api/orders/create", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    listingId: listing.id,
-                    title: listing.title,
-                    amount: listing.price,
-                    sellerName,
-                    sellerId: listing.sellerId,
-                    sellerVerified: listing.sellerVerified ?? false,
-                    hasShieldProtection: listing.hasShieldProtection ?? listing.sellerVerified ?? false,
-                    listingPlan: listing.listingPlan || (listing.hasShieldProtection ? "shield" : "standard"),
-                    buyerId: user.uid,
-                    rank: listing.rank,
-                    skinsCount: listing.skins ?? listing.skinsCount ?? 0,
-                    paymentReference: response.reference,
-                  }),
-                });
-
-                const createData = await createResponse.json();
-
-                if (!createResponse.ok || !createData.success) {
-                  const errorMsg = createData.error || createData.details || "Failed to create order";
-                  console.error("Order creation failed. API error:", createData.error, "Full response:", createData);
-                  throw new Error(errorMsg);
-                }
-
-                setShowPaymentModal(false);
-                setPaymentSuccess(true);
-                setSuccessOrderId(createData.orderId);
-                setPurchasedListingIds((prev) => new Set(prev).add(listing.id));
-              } catch (dbError) {
-                const errorMessage = dbError instanceof Error ? dbError.message : "Unknown error";
-                console.error("Failed to create order after payment:", dbError);
-                setPurchaseError(`Payment verified, but order creation failed: ${errorMessage}. Please contact support with your reference.`);
-              } finally {
-                setPaymentProcessing(false);
-                setPaymentModalLocked(false);
-                setCurrentPaymentReference(null);
-              }
-            } else if (verificationData.error) {
-              setPurchaseError(verificationData.error);
-              setPaymentProcessing(false);
-              setPaymentModalLocked(false);
-              setCurrentPaymentReference(null);
-            }
-          } catch {
-            setPurchaseError("Payment verified, but order creation failed. Please contact support.");
-            setPaymentProcessing(false);
-            setPaymentModalLocked(false);
-            setCurrentPaymentReference(null);
-          }
-        },
-      });
+      const handler = paystackWindow.PaystackPop.setup(paystackConfig);
 
       handler.openIframe();
     } catch (error) {
