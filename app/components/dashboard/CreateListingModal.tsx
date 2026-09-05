@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { 
   X, ShieldCheck, Gamepad2, AlertCircle, Upload, Key, Eye, EyeOff, 
   Trash2, ChevronRight, ChevronLeft, ShieldAlert, Zap, Lock, CheckCircle2, FileText, Sparkles, Info, AlertTriangle
@@ -129,10 +129,13 @@ export default function CreateListingModal({
     setInternalSelectedGame(null);
   }, [isVerifiedSeller, game]);
 
+  const prevOpenRef = useRef(isOpen);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevOpenRef.current) {
       resetForm();
     }
+    prevOpenRef.current = isOpen;
   }, [isOpen, resetForm]);
 
   useEffect(() => {

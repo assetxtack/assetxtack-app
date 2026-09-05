@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../../components/AuthGuard";
@@ -207,9 +207,14 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
   const [paymentModalLocked, setPaymentModalLocked] = useState(false);
   const [currentPaymentReference, setCurrentPaymentReference] = useState<string | null>(null);
   const [isAgreed, setIsAgreed] = useState(false);
+  const paystackScriptLoadedRef = useRef(false);
+  const paystackHandlerRef = useRef<((response: { reference: string }) => void) | null>(null);
+  const paystackCloseRef = useRef<(() => void) | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
   const [successCountdown, setSuccessCountdown] = useState(8);
+  const successCountdownRef = useRef(8);
+  const countdownInitializedRef = useRef(false);
 
   useEffect(() => {
     if (!resolvedParams?.id) return;
@@ -261,15 +266,31 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
   }, []);
 
   useEffect(() => {
-    if (!paymentSuccess || !successOrderId) return;
-    setSuccessCountdown(8);
+    return () => {
+      paystackHandlerRef.current = null;
+      paystackCloseRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!paymentSuccess || !successOrderId) {
+      countdownInitializedRef.current = false;
+      return;
+    }
+
+    if (!countdownInitializedRef.current) {
+      countdownInitializedRef.current = true;
+      Promise.resolve().then(() => {
+        successCountdownRef.current = 8;
+        setSuccessCountdown(8);
+      });
+    }
+
     const timer = setInterval(() => {
       setSuccessCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
+        const next = prev <= 1 ? 0 : prev - 1;
+        successCountdownRef.current = next;
+        return next;
       });
     }, 1000);
     return () => clearInterval(timer);
@@ -320,10 +341,29 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
     if (user.email) setPaystackEmail(user.email);
   };
 
+  const loadPaystackScript = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (paystackScriptLoadedRef.current) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://js.paystack.co/v1/inline.js";
+      script.async = true;
+      script.onload = () => {
+        paystackScriptLoadedRef.current = true;
+        resolve();
+      };
+      script.onerror = () => reject(new Error("Failed to load Paystack inline script"));
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePaystackPayment = async () => {
     if (!paystackEmail || !listing) return;
     if (paymentModalLocked) return;
-    
+
     setPaymentProcessing(true);
     setPurchaseError(null);
     setPaymentModalLocked(true);
@@ -332,8 +372,8 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
       const amountToCharge = calculatePaystackFee(listing.price || 0).total;
       const reference = `AX-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       setCurrentPaymentReference(reference);
-      
-      const result = await initializePaystackTransaction({
+
+      await initializePaystackTransaction({
         email: paystackEmail,
         amount: amountToCharge,
         reference,
@@ -348,94 +388,108 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
         },
       });
 
-      window.open(result.authorizationUrl, "_blank", "width=600,height=700,noopener,noreferrer");
-      
-      const verifyPayment = async () => {
-        if (verifiedPayments.has(reference) || paymentProcessing) return;
+      await loadPaystackScript();
 
-        try {
-          const verificationResponse = await fetch("/api/paystack/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reference, listingId: listing.id }),
-          });
+      const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+      if (!publicKey) {
+        throw new Error("Paystack public key is not configured");
+      }
 
-          const verificationData = await verificationResponse.json();
+      const handler = (window as unknown as Record<string, unknown> & { PaystackPop: { setup: (config: Record<string, unknown>) => { openIframe: () => void } } }).PaystackPop.setup({
+        key: publicKey,
+        email: paystackEmail,
+        amount: Math.round(amountToCharge * 100),
+        currency: "NGN",
+        ref: reference,
+        metadata: {
+          listingId: listing.id,
+          buyerId: user!.uid,
+          sellerId: listing.sellerId,
+        },
+        onClose: () => {
+          setPaymentProcessing(false);
+          setPaymentModalLocked(false);
+          setCurrentPaymentReference(null);
+        },
+        callback: async (response: { reference: string }) => {
+          try {
+            const verificationResponse = await fetch("/api/paystack/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ reference: response.reference, listingId: listing.id }),
+            });
 
-          if (verificationData.success) {
-            setVerifiedPayments((prev) => new Set(prev).add(reference));
+            const verificationData = await verificationResponse.json();
 
-            if (!user?.uid || !listing) {
-              setPurchaseError("Session expired. Please refresh and try again.");
-              setPaymentProcessing(false);
-              setPaymentModalLocked(false);
-              return;
-            }
+            if (verificationData.success) {
+              setVerifiedPayments((prev) => new Set(prev).add(response.reference));
 
-            try {
-              const sellerName = listing.seller || listing.sellerName || "Seller";
-
-              const createResponse = await fetch("/api/orders/create", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                listingId: listing.id,
-                title: listing.title,
-                amount: listing.price,
-                sellerName,
-                sellerId: listing.sellerId,
-                sellerVerified: listing.sellerVerified ?? false,
-                hasShieldProtection: listing.hasShieldProtection ?? listing.sellerVerified ?? false,
-                listingPlan: listing.listingPlan || (listing.hasShieldProtection ? "shield" : "standard"),
-                buyerId: user.uid,
-                rank: listing.rank,
-                skinsCount: listing.skins ?? listing.skinsCount ?? 0,
-                paymentReference: reference,
-              }),
-              });
-
-              const createData = await createResponse.json();
-
-              if (!createResponse.ok || !createData.success) {
-                const errorMsg = createData.error || createData.details || "Failed to create order";
-                console.error("Order creation failed. API error:", createData.error, "Full response:", createData);
-                throw new Error(errorMsg);
+              if (!user?.uid || !listing) {
+                setPurchaseError("Session expired. Please refresh and try again.");
+                setPaymentProcessing(false);
+                setPaymentModalLocked(false);
+                return;
               }
 
-              setShowPaymentModal(false);
-              setPaymentSuccess(true);
-              setSuccessOrderId(createData.orderId);
-              setPurchasedListingIds((prev) => new Set(prev).add(listing.id));
-            } catch (dbError) {
-              const errorMessage = dbError instanceof Error ? dbError.message : "Unknown error";
-              console.error("Failed to create order after payment:", dbError);
-              setPurchaseError(`Payment verified, but order creation failed: ${errorMessage}. Please contact support with your reference.`);
-            } finally {
+              try {
+                const sellerName = listing.seller || listing.sellerName || "Seller";
+
+                const createResponse = await fetch("/api/orders/create", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    listingId: listing.id,
+                    title: listing.title,
+                    amount: listing.price,
+                    sellerName,
+                    sellerId: listing.sellerId,
+                    sellerVerified: listing.sellerVerified ?? false,
+                    hasShieldProtection: listing.hasShieldProtection ?? listing.sellerVerified ?? false,
+                    listingPlan: listing.listingPlan || (listing.hasShieldProtection ? "shield" : "standard"),
+                    buyerId: user.uid,
+                    rank: listing.rank,
+                    skinsCount: listing.skins ?? listing.skinsCount ?? 0,
+                    paymentReference: response.reference,
+                  }),
+                });
+
+                const createData = await createResponse.json();
+
+                if (!createResponse.ok || !createData.success) {
+                  const errorMsg = createData.error || createData.details || "Failed to create order";
+                  console.error("Order creation failed. API error:", createData.error, "Full response:", createData);
+                  throw new Error(errorMsg);
+                }
+
+                setShowPaymentModal(false);
+                setPaymentSuccess(true);
+                setSuccessOrderId(createData.orderId);
+                setPurchasedListingIds((prev) => new Set(prev).add(listing.id));
+              } catch (dbError) {
+                const errorMessage = dbError instanceof Error ? dbError.message : "Unknown error";
+                console.error("Failed to create order after payment:", dbError);
+                setPurchaseError(`Payment verified, but order creation failed: ${errorMessage}. Please contact support with your reference.`);
+              } finally {
+                setPaymentProcessing(false);
+                setPaymentModalLocked(false);
+                setCurrentPaymentReference(null);
+              }
+            } else if (verificationData.error) {
+              setPurchaseError(verificationData.error);
               setPaymentProcessing(false);
               setPaymentModalLocked(false);
               setCurrentPaymentReference(null);
             }
-          } else if (verificationData.error) {
-            setPurchaseError(verificationData.error);
+          } catch {
+            setPurchaseError("Payment verified, but order creation failed. Please contact support.");
             setPaymentProcessing(false);
             setPaymentModalLocked(false);
             setCurrentPaymentReference(null);
           }
-        } catch {
-          // silent fail; user can retry by switching back to this tab
-        }
-      };
+        },
+      });
 
-      const handleFocus = () => {
-        window.removeEventListener("focus", handleFocus);
-        void verifyPayment();
-      };
-
-      window.addEventListener("focus", handleFocus);
-
-      return () => {
-        window.removeEventListener("focus", handleFocus);
-      };
+      handler.openIframe();
     } catch (error) {
       console.error("Payment initialization failed:", error);
       const message = error instanceof Error ? error.message : "Payment gateway failed. Please refresh and try again.";

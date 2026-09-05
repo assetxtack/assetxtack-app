@@ -44,6 +44,14 @@ export async function POST(request: Request) {
     const listingsRef = adminDb.collection("listings");
     const chatsRef = adminDb.collection("chats");
 
+    const existingOrderQuery = ordersRef.where("paymentReference", "==", paymentReference).limit(1);
+    const existingOrderSnap = await existingOrderQuery.get();
+    if (!existingOrderSnap.empty) {
+      const existingOrder = existingOrderSnap.docs[0];
+      console.log("Duplicate order prevented for paymentReference:", paymentReference, "existingOrderId:", existingOrder.id);
+      return NextResponse.json({ success: true, orderId: existingOrder.id, duplicate: true });
+    }
+
     const orderRef = await ordersRef.add({
       listingId,
       title,
