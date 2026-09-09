@@ -307,7 +307,7 @@ export default function MyListingsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredListings.map((item) => {
+            {filteredListings.map((item, index) => {
                const data = item as unknown as ListingData;
                const title = typeof data.title === "string" ? data.title : "";
                const price = typeof data.price === "number" ? data.price : 0;
@@ -319,10 +319,10 @@ export default function MyListingsPage() {
                const heroesCount = Number(getListingAttr(data as never, "heroesCount") ?? 0);
                const winRate = (getListingAttr(data as never, "winRate") as string | undefined) || "N/A";
 
-               return (
-                <div 
-                  key={data.id} 
-                  className="bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/40 rounded-2xl flex flex-col justify-between gap-5 transition-all group hover:shadow-lg overflow-hidden"
+                return (
+                  <div
+                    key={`${data.id}-${index}`}
+                    className="bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/40 rounded-2xl flex flex-col justify-between gap-5 transition-all group hover:shadow-lg overflow-hidden"
                 >
                    {/* Listing Image */}
                    <div className="relative w-full h-40 bg-[#151922] border-b border-[#242938] overflow-hidden">

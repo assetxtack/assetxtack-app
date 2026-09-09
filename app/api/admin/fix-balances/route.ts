@@ -69,6 +69,9 @@ export async function POST(request: Request) {
             escrowBalance = Math.max(0, escrowBalance - grossAmount);
             lifetimeSales += grossAmount;
             break;
+          case "ESCROW_CANCELLED":
+            escrowBalance = Math.max(0, escrowBalance - amount);
+            break;
           case "WITHDRAWAL_COMPLETED":
             availableBalance -= amount;
             break;

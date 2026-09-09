@@ -7,31 +7,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isUserId(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function canReadChat() {
-      return (
-        resource.data.senderId == request.auth.uid ||
-        resource.data.isSystemMessage == true ||
-        resource.data.buyerId == request.auth.uid ||
-        resource.data.sellerId == request.auth.uid ||
-        isOrderParticipant()
-      );
-    }
-
-    function isOrderParticipant() {
+    function isOrderParticipant(orderId) {
       return isAuthenticated() &&
-        get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data.buyerId == request.auth.uid ||
-        get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data.sellerId == request.auth.uid;
+        (get(/databases/$(database)/documents/orders/$(orderId)).data.buyerId == request.auth.uid ||
+         get(/databases/$(database)/documents/orders/$(orderId)).data.sellerId == request.auth.uid);
     }
 
     function hasNoForbiddenFields(forbiddenFields) {
       return !request.resource.data.keys().hasAny(forbiddenFields);
     }
 
-    // USER PROFILES
     match /users/{userId} {
       allow read: if isAuthenticated();
 
@@ -74,7 +59,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // PUBLIC MARKETPLACE LISTINGS
     match /listings/{listingId} {
       allow read: if true;
       allow create: if false;
@@ -82,7 +66,6 @@ service cloud.firestore {
         && resource.data.sellerId == request.auth.uid;
     }
 
-    // SECURE ORDERS & CREDENTIAL HANDOVER
     match /orders/{orderId} {
       allow read: if isAuthenticated() &&
         (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
@@ -91,53 +74,49 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // SERVER-WRITE-ONLY: Protected timestamp audit log
-    // These collections can only be written by Firebase Admin SDK (backend API routes)
     match /escrowAudit/{auditId} {
       allow read: if isAuthenticated() &&
         (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
       allow write: if false;
     }
 
-    // CHATS & MESSAGES
     match /chats/{chatId} {
-      allow read: if isAuthenticated() && canReadChat();
+      allow read: if isAuthenticated() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.sellerId == request.auth.uid ||
+        isOrderParticipant(resource.data.orderId)
+      );
       allow create: if false;
       allow update, delete: if false;
     }
 
-    // NOTIFICATIONS
     match /notifications/{notificationId} {
       allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if false;
     }
 
-    // WALLETS
     match /wallets/{walletId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow write: if false;
     }
 
-    // WALLET TRANSACTIONS (AUDIT LEDGER)
     match /walletTransactions/{txId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if false;
     }
 
-    // WITHDRAWAL REQUESTS
     match /withdrawalRequests/{requestId} {
       allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
       allow create: if false;
       allow update, delete: if false;
     }
 
-    // KYC VERIFICATION
     match /kyc/{kycId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create, update: if false;
     }
 
-    // DISPUTES
     match /disputes/{disputeId} {
       allow read: if isAuthenticated() &&
         (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
@@ -145,14 +124,12 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // ESCROW (LOCKED TO SERVER-ONLY OR PARTIES)
     match /escrow/{escrowId} {
       allow read: if isAuthenticated() &&
         (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
       allow write: if false;
     }
 
-    // SUPPORT TICKETS
     match /supportTickets/{ticketId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
@@ -172,7 +149,6 @@ service cloud.firestore {
       }
     }
 
-    // REVIEWS
     match /reviews/{reviewId} {
       allow read: if true;
       allow create: if isAuthenticated()
@@ -183,20 +159,17 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.buyerId == request.auth.uid;
     }
 
-    // PAYSTACK TRANSFERS
     match /transfers/{transferId} {
       allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
       allow create: if false;
       allow update, delete: if false;
     }
 
-    // REVIEW STATS (DENORMALIZED COUNTERS)
     match /reviewStats/{sellerId} {
       allow read: if true;
       allow write: if false;
     }
 
-    // ADMIN
     match /admin/{docId} {
       allow read, write: if false;
     }

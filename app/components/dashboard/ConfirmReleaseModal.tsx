@@ -11,7 +11,7 @@ interface ConfirmReleaseModalProps {
   amount?: number;
 }
 
-const CONFIRMATION_PHRASE = "CONFIRM CREDENTIALS";
+const CONFIRMATION_PHRASE = "CONFIRM";
 
 export default function ConfirmReleaseModal({
   isOpen,

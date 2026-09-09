@@ -3,6 +3,7 @@ import { getAdminFirestore } from "./firebase-admin";
 export type WalletTransactionType =
   | "ESCROW_LOCK"
   | "ESCROW_RELEASE"
+  | "ESCROW_CANCELLED"
   | "WITHDRAWAL_INITIATED"
   | "WITHDRAWAL_COMPLETED"
   | "WITHDRAWAL_FAILED"
@@ -69,6 +70,11 @@ export async function recordWalletTransaction({
         nextBalance = currentBalance + releaseAmount;
         nextEscrow = Math.max(0, currentEscrow - escrowDeduction);
         nextLifetime = currentLifetime + escrowDeduction;
+        break;
+      }
+      case "ESCROW_CANCELLED": {
+        const cancelAmount = escrowAmount !== undefined ? Number(escrowAmount) : Number(amount);
+        nextEscrow = Math.max(0, currentEscrow - cancelAmount);
         break;
       }
       case "WITHDRAWAL_COMPLETED":

@@ -1,24 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck, Key, X, Mail, Lock, FileText } from "lucide-react";
+import { Key, X, Mail, Lock, ShieldCheck } from "lucide-react";
 
-interface DeliveryModalProps {
-  orderId: string;
-  buyerId: string;
-  sellerId: string;
+interface ReturnCredentialsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onConfirm: (credentials: string) => void;
+  isProcessing: boolean;
 }
 
-export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onClose }: DeliveryModalProps) {
+export default function ReturnCredentialsModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  isProcessing,
+}: ReturnCredentialsModalProps) {
   const [primaryEmail, setPrimaryEmail] = useState("");
   const [password, setPassword] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [transferCode, setTransferCode] = useState("");
-  const [notes, setNotes] = useState("");
-  const [acknowledgedBuyerSecurity, setAcknowledgedBuyerSecurity] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -32,37 +33,11 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
     return parts.join("\n");
   };
 
-  const handleSubmitDelivery = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const blob = buildCredentialsBlob();
     if (!blob.trim()) return;
-
-    setIsSubmitting(true);
-
-    try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/deliver`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId,
-            buyerId,
-            sellerId,
-            credentials: blob,
-            deliveryNotes: notes,
-          }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to deliver credentials");
-      }
-
-      onClose();
-    } catch (error) {
-      console.error("Error submitting delivery:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    await onConfirm(blob);
   };
 
   return (
@@ -70,30 +45,18 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-fadeIn">
         <div className="px-5 py-4 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
-            <Key className="w-4 h-4" /> Secure Account Delivery
+            <Key className="w-4 h-4" /> Return Credentials to Seller
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
+          <button onClick={onClose} disabled={isProcessing} className="text-zinc-500 hover:text-zinc-300 disabled:opacity-50">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmitDelivery} className="p-5 space-y-4">
-          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 flex items-start gap-2">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-300 flex items-start gap-2">
             <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>Enter the account credentials below. Each field will be shown separately to the buyer with copy buttons.</span>
+            <span>Enter the reverted account credentials below. These will be securely shared with the seller for verification during dispute resolution.</span>
           </div>
-
-          <label className="flex items-start gap-2.5 p-3 bg-zinc-950 border border-zinc-800 rounded-xl cursor-pointer">
-            <input
-              type="checkbox"
-              checked={acknowledgedBuyerSecurity}
-              onChange={(e) => setAcknowledgedBuyerSecurity(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-amber-500"
-            />
-            <span className="text-[11px] text-zinc-300 leading-relaxed">
-              I acknowledge that the buyer will verify all listed assets prior to binding the account, and must leave credentials unchanged if opening a dispute.
-            </span>
-          </label>
 
           <div className="space-y-3">
             <div>
@@ -107,6 +70,7 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
                   onChange={(e) => setPrimaryEmail(e.target.value)}
                   placeholder="account@domain.com"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                  disabled={isProcessing}
                 />
               </div>
             </div>
@@ -122,6 +86,7 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
+                  disabled={isProcessing}
                 />
               </div>
             </div>
@@ -136,6 +101,7 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
                   onChange={(e) => setRecoveryEmail(e.target.value)}
                   placeholder="recovery@gmail.com"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                  disabled={isProcessing}
                 />
               </div>
             </div>
@@ -150,22 +116,9 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
                   onChange={(e) => setTransferCode(e.target.value)}
                   placeholder="XYZ-123"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
+                  disabled={isProcessing}
                 />
               </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Additional Instructions (Optional)</label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-3 text-zinc-500" size={14} />
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Bound email password changed, check inbox."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
-              />
             </div>
           </div>
 
@@ -173,16 +126,24 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl border border-zinc-800 text-xs font-medium text-zinc-400 hover:bg-zinc-800 transition"
+              disabled={isProcessing}
+              className="flex-1 py-2.5 rounded-xl border border-zinc-800 text-xs font-medium text-zinc-400 hover:bg-zinc-800 transition disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !acknowledgedBuyerSecurity}
-              className="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold text-xs transition disabled:opacity-50"
+              disabled={isProcessing || !primaryEmail || !password}
+              className="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-900 hover:bg-amber-400 font-semibold text-xs transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {isSubmitting ? "Submitting..." : "Deliver Asset"}
+              {isProcessing ? (
+                <>
+                  <span className="h-3 w-3 rounded-full border-2 border-zinc-900 border-t-transparent animate-spin" />
+                  Returning...
+                </>
+              ) : (
+                <>Return to Seller</>
+              )}
             </button>
           </div>
         </form>
@@ -190,4 +151,3 @@ export default function DeliveryModal({ orderId, buyerId, sellerId, isOpen, onCl
     </div>
   );
 }
-
