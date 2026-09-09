@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { AlertTriangle, Lock, Clock, CheckCircle, Loader2, Shield, Key, Copy, Check } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Lock, CheckCircle, Loader2, Shield, Key, Copy, Check } from "lucide-react";
+import OrderCountdown from "./OrderCountdown";
 
 interface ReclamationWorkflowProps {
   order: {
@@ -13,12 +14,17 @@ interface ReclamationWorkflowProps {
     buyerId?: string;
     sellerId?: string;
     disputedAt?: string | Date | null;
+    disputeStartedAt?: string | Date | null;
+    disputePhase?: number | string | null;
     disputeReclamationDeadline?: string | Date | null;
     returnedCredentials?: string | null;
+    credentialsReturnedAt?: string | Date | null;
     returnedCredentialsAt?: string | Date | null;
     sellerVerificationDeadline?: string | Date | null;
     accountSecuredAt?: string | Date | null;
     isTimerFrozen?: boolean;
+    timerFrozenAt?: string | Date | null;
+    timerFrozenRemainingMs?: number | null;
     disputeResolution?: string | null;
     credentials?: string;
   } | null;
@@ -26,116 +32,6 @@ interface ReclamationWorkflowProps {
   isSeller: boolean;
   onAccountSecured: (checklist: { assetIntegrity: boolean; credentialSecurity: boolean; noUnauthorizedBinding: boolean }) => void;
   isProcessing: boolean;
-}
-
-const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
-const ONE_HOUR_MS = 60 * 60 * 1000;
-
-interface TimestampDisplayProps {
-  deadline?: string | Date | null;
-  label: string;
-  isBuyer: boolean;
-  isActive: boolean;
-  isTimerFrozen: boolean;
-}
-
-function useCountdown(targetTime: Date | null) {
-  const [timeRemaining, setTimeRemaining] = useState<number>(0);
-  const [isExpired, setIsExpired] = useState(false);
-
-  const isReady = useMemo(() => {
-    if (!targetTime) return false;
-    const target = new Date(targetTime).getTime();
-    return !isNaN(target);
-  }, [targetTime]);
-
-  useEffect(() => {
-    if (!isReady) return;
-
-    const target = new Date(targetTime!).getTime();
-
-    const update = () => {
-      const remaining = target - Date.now();
-      setTimeRemaining(remaining);
-      setIsExpired(remaining <= 0);
-    };
-
-    update();
-    const interval = setInterval(update, 1000);
-
-    return () => clearInterval(interval);
-  }, [targetTime, isReady]);
-
-  return { timeRemaining, isExpired, isReady };
-}
-
-function formatTime(ms: number): string {
-  if (ms <= 0) return "00h 00m 00s";
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${hours.toString().padStart(2, "0")}h ${minutes.toString().padStart(2, "0")}m ${seconds.toString().padStart(2, "0")}s`;
-}
-
-function getWarningColor(ms: number): string {
-  if (ms <= 0) return "text-rose-400";
-  if (ms <= ONE_HOUR_MS) return "text-rose-400";
-  if (ms <= FOUR_HOURS_MS) return "text-amber-400";
-  return "text-[#EDEFF2]";
-}
-
-function getBgColor(ms: number): string {
-  if (ms <= 0) return "bg-rose-500/10 border-rose-500/30";
-  if (ms <= ONE_HOUR_MS) return "bg-rose-500/10 border-rose-500/30";
-  if (ms <= FOUR_HOURS_MS) return "bg-amber-500/10 border-amber-500/30";
-  return "bg-[#151922] border-[#242938]";
-}
-
-function DisputeCountdownTimer({ deadline, label, isBuyer, isActive, isTimerFrozen }: TimestampDisplayProps) {
-  const { timeRemaining, isExpired, isReady } = useCountdown(deadline ? new Date(deadline) : null);
-
-  if (!isReady || !deadline) return null;
-  if (!isActive) return null;
-
-  const color = getWarningColor(timeRemaining);
-  const bgColor = getBgColor(timeRemaining);
-
-  return (
-    <div className={`p-4 rounded-2xl border ${bgColor} shadow-xl`}>
-      <div className="flex items-center gap-2 mb-2">
-        {isExpired ? (
-          <AlertTriangle size={16} className="text-rose-400" />
-        ) : (
-          <Clock size={16} className={color} />
-        )}
-        <span className={`text-xs font-bold uppercase tracking-wider ${color}`}>
-          {label}
-        </span>
-        {isTimerFrozen && (
-          <Lock size={10} className="text-blue-400" />
-        )}
-      </div>
-      <div className={`text-2xl font-mono font-bold ${color}`}>
-        {formatTime(timeRemaining)}
-      </div>
-      <p className="text-xs text-[#8A93A3] mt-2 leading-relaxed">
-        {isExpired
-          ? "Time expired. Resolution will be applied automatically."
-          : isBuyer
-            ? "Return credentials in this window to avoid automatic funds release to the seller."
-            : "Verify account security and confirm in this window to proceed."}
-      </p>
-      {timeRemaining > 0 && timeRemaining <= FOUR_HOURS_MS && !isExpired && (
-        <div className="mt-2 p-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">
-          <p className="text-[10px] text-rose-300 flex items-center gap-1.5">
-            <AlertTriangle size={10} />
-            Urgent: Less than 4 hours remaining!
-          </p>
-        </div>
-      )}
-    </div>
-  );
 }
 
 function parseCredentialLine(line: string) {
@@ -302,12 +198,15 @@ export default function ReclamationWorkflow({
       {/* Phase 1: Buyer returns credentials */}
       {isDisputed && (
         <div className="space-y-4">
-          <DisputeCountdownTimer
+          <OrderCountdown
+            status="DISPUTED"
             deadline={order.disputeReclamationDeadline}
-            label="Phase 1: Return Credentials — 24h Remaining"
-            isBuyer={isBuyer}
-            isActive={isDisputed && !isTimerFrozen}
+            disputedAt={order.disputeStartedAt || order.disputedAt}
+            timerFrozenRemainingMs={order.timerFrozenRemainingMs}
             isTimerFrozen={isTimerFrozen}
+            isBuyer={isBuyer}
+            isSeller={isSeller}
+            orderId={order.id}
           />
 
           {isBuyer && (
@@ -323,12 +222,13 @@ export default function ReclamationWorkflow({
       {/* Phase 2: Seller verifies account security */}
       {isReturnedCreds && (
         <div className="space-y-4">
-          <DisputeCountdownTimer
-            deadline={order.sellerVerificationDeadline}
-            label="Phase 2: Seller Verification — 24h Remaining"
-            isBuyer={isBuyer}
-            isActive={isReturnedCreds && !isTimerFrozen}
+          <OrderCountdown
+            status="RETURNED_CREDENTIALS"
+            returnedCredentialsAt={order.returnedCredentialsAt}
             isTimerFrozen={isTimerFrozen}
+            isBuyer={isBuyer}
+            isSeller={isSeller}
+            orderId={order.id}
           />
         </div>
       )}
