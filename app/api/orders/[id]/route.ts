@@ -5,11 +5,8 @@ import { recordWalletTransaction } from "@/lib/wallet";
 import { sendDisputeEmail } from "@/lib/email/sendDisputeEmail";
 import { sendOrderCompletedEmail } from "@/lib/email/sendOrderCompletedEmail";
 import { sendCredentialsReturnedEmail } from "@/lib/email/sendCredentialsReturnedEmail";
-import { sendUrgentReminderEmail } from "@/lib/email/sendUrgentReminderEmail";
 
 export const dynamic = "force-dynamic";
-
-const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 export async function GET(request: Request) {
   try {
@@ -262,17 +259,6 @@ export async function PATCH(request: Request) {
           orderId,
           listingTitle,
         });
-
-        const remainingMs = TWENTY_FOUR_HOURS_MS;
-        const hoursRemaining = Math.max(1, Math.ceil(remainingMs / (60 * 60 * 1000)));
-        if (hoursRemaining <= 4 || hoursRemaining === 24) {
-          await sendUrgentReminderEmail({
-            userId: sellerId,
-            orderId,
-            listingTitle,
-            hoursRemaining,
-          });
-        }
       }
 
       if (buyerId) {

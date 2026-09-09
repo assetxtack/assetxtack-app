@@ -75,6 +75,10 @@ export interface Order {
     seller2hSent?: boolean;
     buyer12hSent?: boolean;
     buyer2hSent?: boolean;
+    disputePhase1_4hSent?: boolean;
+    disputePhase1_1hSent?: boolean;
+    disputePhase2_4hSent?: boolean;
+    disputePhase2_1hSent?: boolean;
   };
 }
 
