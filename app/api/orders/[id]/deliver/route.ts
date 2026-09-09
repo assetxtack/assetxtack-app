@@ -31,6 +31,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    if (orderData?.status === "CANCELLED") {
+      return NextResponse.json({ error: "Order is cancelled and locked" }, { status: 403 });
+    }
+
     await orderRef.update({
       status: "INSPECTION_PERIOD",
       credentials,

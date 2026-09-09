@@ -14,6 +14,7 @@ interface OrderCountdownProps {
   isBuyer: boolean;
   isSeller: boolean;
   orderId: string;
+  onExpireChange?: (expired: boolean) => void;
 }
 
 function parseTimestamp(ts: unknown): number | null {
@@ -50,6 +51,7 @@ export default function OrderCountdown({
   isBuyer,
   isSeller,
   orderId,
+  onExpireChange,
 }: OrderCountdownProps) {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isExpired, setIsExpired] = useState(false);
@@ -97,8 +99,12 @@ export default function OrderCountdown({
       const now = Date.now();
       const elapsed = now - referenceTimeRef.current!;
       const remaining = TWENTY_FOUR_HOURS_MS - elapsed;
+      const expired = remaining <= 0;
       setTimeRemaining(remaining);
-      setIsExpired(remaining <= 0);
+      if (expired !== isExpired) {
+        setIsExpired(expired);
+        onExpireChange?.(expired);
+      }
     };
 
     calculateRemaining();
@@ -110,7 +116,7 @@ export default function OrderCountdown({
         intervalRef.current = null;
       }
     };
-  }, [isReady]);
+  }, [isReady, isExpired, onExpireChange]);
 
   if (!isReady) {
     return (

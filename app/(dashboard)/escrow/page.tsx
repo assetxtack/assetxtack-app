@@ -15,9 +15,36 @@ type EscrowOrder = {
   buyerId?: string;
   sellerId?: string;
   status?: "IN_ESCROW" | "AWAITING_CREDENTIALS" | "INSPECTION_PERIOD" | "DELIVERED" | "COMPLETED" | "DISPUTED" | "CANCELLED" | string;
+  paymentVerifiedAt?: string | Date | null;
+  paidAt?: string | Date | null;
+  createdAt?: string | Date | null;
 };
 
 type FilterTab = "ALL" | "ACTIVE" | "COMPLETED" | "DISPUTED";
+
+function parseTimestamp(ts: unknown): number | null {
+  if (!ts) return null;
+  if (ts instanceof Date) return ts.getTime();
+  if (typeof ts === "object" && ts !== null && "toMillis" in ts && typeof (ts as { toMillis: () => number }).toMillis === "function") {
+    return (ts as { toMillis: () => number }).toMillis();
+  }
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().getTime();
+  }
+  if (typeof ts === "string" || typeof ts === "number") {
+    const parsed = new Date(ts as string | number).getTime();
+    return isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+function isOrderExpired(order: EscrowOrder): boolean {
+  if (order.status !== "AWAITING_CREDENTIALS") return false;
+  const referenceTime = order.paymentVerifiedAt || order.paidAt || order.createdAt;
+  const parsed = parseTimestamp(referenceTime);
+  if (!parsed) return false;
+  return Date.now() - parsed >= 24 * 60 * 60 * 1000;
+}
 
 export default function EscrowOrdersPage() {
   const { user, loading: authLoading } = useAuth();
@@ -57,8 +84,14 @@ export default function EscrowOrdersPage() {
   const isLoading = authLoading || (Boolean(user?.uid) && loading);
 
   // Status badge styling helper
-  const getStatusBadge = (status?: string) => {
+  const getStatusBadge = (status?: string, isExpired?: boolean) => {
     const normStatus = (status || "IN_ESCROW").toUpperCase();
+    if (isExpired && normStatus === "AWAITING_CREDENTIALS") {
+      return {
+        label: "EXPIRED",
+        className: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+      };
+    }
     switch (normStatus) {
       case "COMPLETED":
       case "RELEASED":
@@ -96,7 +129,9 @@ export default function EscrowOrdersPage() {
   // Filter orders based on active tab
   const filteredOrders = orders.filter((order) => {
     const normStatus = (order.status || "IN_ESCROW").toUpperCase();
+    const expired = isOrderExpired(order);
     if (activeTab === "ACTIVE") {
+      if (expired) return false;
       return normStatus === "IN_ESCROW" || normStatus === "AWAITING_CREDENTIALS" || normStatus === "INSPECTION_PERIOD" || normStatus === "PENDING" || normStatus === "DELIVERED";
     }
     if (activeTab === "COMPLETED") {
@@ -153,6 +188,7 @@ export default function EscrowOrdersPage() {
             {
               orders.filter((o) => {
                 const s = (o.status || "IN_ESCROW").toUpperCase();
+                if (isOrderExpired(o)) return false;
                 return s === "IN_ESCROW" || s === "AWAITING_CREDENTIALS" || s === "INSPECTION_PERIOD" || s === "PENDING" || s === "DELIVERED";
               }).length
             }
@@ -228,7 +264,8 @@ export default function EscrowOrdersPage() {
           <section className="space-y-3">
             {filteredOrders.map((order) => {
               const isSeller = order.sellerId === user?.uid;
-              const statusBadge = getStatusBadge(order.status);
+              const orderExpired = isOrderExpired(order);
+              const statusBadge = getStatusBadge(order.status, orderExpired);
 
               return (
                 <Link

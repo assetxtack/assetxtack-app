@@ -10,6 +10,10 @@ import TradeChat from "../../../components/dashboard/TradeChat";
 import ReviewModal from "../../../components/dashboard/ReviewModal";
 import OrderCountdown from "../../../components/dashboard/OrderCountdown";
 import ConfirmReleaseModal from "../../../components/dashboard/ConfirmReleaseModal";
+import RaiseDisputeModal from "../../../components/dashboard/RaiseDisputeModal";
+import ReturnCredentialsModal from "../../../components/dashboard/ReturnCredentialsModal";
+import ReclamationWorkflow from "../../../components/dashboard/ReclamationWorkflow";
+
 import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../../context/AuthContext";
@@ -21,13 +25,23 @@ type Order = {
   sellerId?: string;
   sellerName?: string;
   buyerId?: string;
-  status?: "IN_ESCROW" | "AWAITING_CREDENTIALS" | "INSPECTION_PERIOD" | "DELIVERED" | "COMPLETED" | "DISPUTED" | "CANCELLED";
+  status?: "IN_ESCROW" | "AWAITING_CREDENTIALS" | "INSPECTION_PERIOD" | "DELIVERED" | "COMPLETED" | "DISPUTED" | "CANCELLED" | "ADMIN_INTERVENTION" | "RETURNED_CREDENTIALS";
   credentials?: string;
   credentialsSubmitted?: string;
   deliveryNotes?: string;
   listingId?: string;
   paymentVerifiedAt?: string | Date | null;
   credentialsDeliveredAt?: string | Date | null;
+  disputedAt?: string | Date | null;
+  disputeRaisedAt?: string | Date | null;
+  disputeReclamationDeadline?: string | Date | null;
+  accountSecuredAt?: string | Date | null;
+  returnedCredentials?: string;
+  returnedCredentialsAt?: string | Date | null;
+  sellerVerificationDeadline?: string | Date | null;
+  isTimerFrozen?: boolean;
+  disputeResolution?: string | null;
+  isChatLocked?: boolean;
 };
 
 export default function OrderDashboardPage() {
@@ -41,12 +55,12 @@ export default function OrderDashboardPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const [showRaiseDisputeModal, setShowRaiseDisputeModal] = useState(false);
+  const [showReturnCredentialsModal, setShowReturnCredentialsModal] = useState(false);
+  const [isOrderExpired, setIsOrderExpired] = useState(false);
 
   // Prevent SSR hydration mismatches with dynamic elements/timers on Vercel
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = true;
 
   const currentUserId = user?.uid ?? "";
   const currentUserName = user?.displayName || user?.email?.split("@")[0] || "AssetXtack User";
@@ -188,13 +202,108 @@ export default function OrderDashboardPage() {
   };
 
   const raiseDispute = () => {
-    if (!window.confirm("Raise an escrow dispute? The vault will be frozen.")) return;
-    if (!order?.id) return;
+    setShowRaiseDisputeModal(true);
+  };
 
-    void updateStatus(
-      "DISPUTED",
-      `Order disputed by ${isSeller ? "seller" : "buyer"}. Vault frozen; an AssetXtack mediator has been assigned.`
-    );
+  const handleDisputeConfirm = async (reason: string, details: string, imageUrl?: string) => {
+    if (!order?.id) return;
+    setShowRaiseDisputeModal(false);
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderId || "")}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          status: "DISPUTED",
+          disputedAt: new Date().toISOString(),
+          initiatorId: currentUserId,
+          disputeReason: reason,
+          disputeDetails: details,
+          disputeImageUrl: imageUrl,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to update order");
+      }
+
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          senderId: "SYSTEM",
+          senderName: "System Guard",
+          text: `Order disputed by ${isSeller ? "seller" : "buyer"}. Vault frozen; an AssetXtack mediator has been assigned.`,
+          isSystemMessage: true,
+        }),
+      });
+    } catch (error) {
+      console.error("Unable to raise dispute:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAccountSecured = async (
+    verificationChecklist?: { assetIntegrity: boolean; credentialSecurity: boolean; noUnauthorizedBinding: boolean }
+  ) => {
+    if (!order?.id) return;
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderId || "")}/account-secured`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          sellerId: currentUserId,
+          amount: order?.amount,
+          verificationChecklist: verificationChecklist || {
+            assetIntegrity: true,
+            credentialSecurity: true,
+            noUnauthorizedBinding: true,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to authorize refund");
+      }
+    } catch (error) {
+      console.error("Unable to authorize refund:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReturnCredentials = async (credentials: string) => {
+    if (!order?.id) return;
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderId || "")}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          status: "RETURNED_CREDENTIALS",
+          returnedCredentials: credentials,
+          returnedCredentialsAt: new Date().toISOString(),
+          initiatorId: currentUserId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to return credentials");
+      }
+      setShowReturnCredentialsModal(false);
+    } catch (error) {
+      console.error("Unable to return credentials:", error);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const releaseFunds = async () => {
@@ -207,6 +316,9 @@ export default function OrderDashboardPage() {
 
   const isAwaitingCredentials = order?.status === "AWAITING_CREDENTIALS" || order?.status === "IN_ESCROW";
   const isInspectionPeriod = order?.status === "INSPECTION_PERIOD" || order?.status === "DELIVERED";
+
+  const isDisputed = order?.status === "DISPUTED" || order?.status === "RETURNED_CREDENTIALS";
+  const hasCredentials = credentialFields.length > 0;
 
   // Prevent layout shifts during SSR hydration phase
   if (!isMounted) {
@@ -236,24 +348,39 @@ export default function OrderDashboardPage() {
               <div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-[#FFB020]/10 text-[#FFB020] border border-[#FFB020]/20 font-semibold">Order #{orderId}</span>
-                  <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1"><ShieldCheck size={14} /> {order?.status || "AWAITING_CREDENTIALS"}</span>
+                  <span className={`text-xs font-semibold flex items-center gap-1 ${isOrderExpired && isAwaitingCredentials ? "text-rose-400" : "text-emerald-400"}`}>
+                    <ShieldCheck size={14} /> {isOrderExpired && isAwaitingCredentials ? "EXPIRED" : (order?.status || "AWAITING_CREDENTIALS")}
+                  </span>
                   {isParticipant && <span className="text-[10px] font-bold text-[#EDEFF2] bg-[#0B0E14] px-2 py-1 rounded border border-[#242938]">You are the {isSeller ? "seller" : "buyer"}</span>}
                 </div>
                 <h1 className="text-xl font-bold text-[#EDEFF2] mt-2">{order?.title || "Loading escrow order..."}</h1>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                {isSeller && isAwaitingCredentials && <button onClick={() => setIsDeliveryModalOpen(true)} className="px-4 py-2.5 rounded-xl bg-[#FFB020] text-[#0B0E14] font-bold text-xs">Submit Credentials</button>}
-                {isBuyer && isAwaitingCredentials && <button onClick={raiseDispute} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-rose-500/10 text-rose-300 border border-rose-500/30 text-xs font-semibold disabled:opacity-50">Raise Dispute</button>}
-                {isSeller && isInspectionPeriod && <button onClick={raiseDispute} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-rose-500/10 text-rose-300 border border-rose-500/30 text-xs font-semibold disabled:opacity-50">Raise Dispute</button>}
-                {isBuyer && isInspectionPeriod && <button onClick={() => setIsReleaseModalOpen(true)} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-emerald-500 text-[#0B0E14] font-bold text-xs disabled:opacity-50">Confirm Delivery & Release Funds</button>}
+                {isSeller && isAwaitingCredentials && !isOrderExpired && (
+                  <button
+                    onClick={() => setIsDeliveryModalOpen(true)}
+                    className="px-4 py-2.5 rounded-xl bg-[#FFB020] text-[#0B0E14] font-bold text-xs hover:bg-[#e09b1c] transition"
+                  >
+                    Submit Credentials
+                  </button>
+                )}
+                {isSeller && isAwaitingCredentials && isOrderExpired && (
+                  <span className="px-4 py-2.5 rounded-xl bg-slate-700 text-slate-400 border border-slate-600 text-xs font-semibold cursor-not-allowed">
+                    Delivery Window Expired
+                  </span>
+                )}
+                {isBuyer && isInspectionPeriod && !isDisputed && <button onClick={raiseDispute} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-rose-500/10 text-rose-300 border border-rose-500/30 text-xs font-semibold disabled:opacity-50">Raise Dispute</button>}
+                {isBuyer && isInspectionPeriod && !isDisputed && <button onClick={() => setIsReleaseModalOpen(true)} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-emerald-500 text-[#0B0E14] font-bold text-xs disabled:opacity-50">Confirm Delivery &amp; Release Funds</button>}
                 {order?.status === "COMPLETED" && <span className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-1.5"><CheckCircle size={16} /> Completed</span>}
                 {isBuyer && order?.status === "COMPLETED" && !hasReviewed && (
                   <button onClick={() => setShowReviewModal(true)} className="px-4 py-2 rounded-xl bg-[#FFB020] text-[#0B0E14] font-bold text-xs flex items-center gap-1.5 hover:bg-[#ffa500] transition">
                     <Star size={14} /> Leave a Review
                   </button>
                 )}
-                {order?.status === "DISPUTED" && <span className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-1.5"><ShieldAlert size={16} /> Escrow frozen</span>}
-                {order?.status === "CANCELLED" && <span className="px-4 py-2 rounded-xl bg-slate-500/10 border border-slate-500/20 text-slate-400 text-xs font-semibold flex items-center gap-1.5"><ShieldAlert size={16} /> Cancelled & Refunded</span>}
+                {isDisputed && isBuyer && <button onClick={() => setShowReturnCredentialsModal(true)} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs font-semibold disabled:opacity-50">Return Credentials to Seller</button>}
+                {isDisputed && isBuyer && <span className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-1.5"><ShieldAlert size={16} /> Dispute in progress</span>}
+                {isDisputed && order?.isTimerFrozen && !order?.accountSecuredAt && <span className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-1.5"><ShieldAlert size={16} /> Escrow frozen</span>}
+                {order?.status === "CANCELLED" && <span className="px-4 py-2 rounded-xl bg-slate-500/10 border border-slate-500/20 text-slate-400 text-xs font-semibold flex items-center gap-1.5"><ShieldAlert size={16} /> Cancelled &amp; Refunded</span>}
               </div>
             </section>
 
@@ -267,6 +394,7 @@ export default function OrderDashboardPage() {
                     isBuyer={isBuyer}
                     isSeller={isSeller}
                     orderId={Array.isArray(orderId) ? orderId[0] : orderId}
+                    onExpireChange={setIsOrderExpired}
                   />
                 )}
                 {isBuyer && credentialFields.length > 0 && (
@@ -300,6 +428,35 @@ export default function OrderDashboardPage() {
                     )}
                   </section>
                 )}
+
+                {/* Dispute Reclamation Workflow */}
+                {isDisputed && isParticipant && (
+                  <ReclamationWorkflow
+                    order={{
+                      id: order?.id || orderId || "",
+                      orderId: order?.id || orderId || "",
+                      status: order?.status || "DISPUTED",
+                      amount: order?.amount,
+                      title: order?.title,
+                      buyerId: order?.buyerId,
+                      sellerId: order?.sellerId,
+                      disputedAt: order?.disputedAt || null,
+                      disputeReclamationDeadline: order?.disputeReclamationDeadline || null,
+                      returnedCredentials: order?.returnedCredentials || null,
+                      returnedCredentialsAt: order?.returnedCredentialsAt || null,
+                      sellerVerificationDeadline: order?.sellerVerificationDeadline || null,
+                      accountSecuredAt: order?.accountSecuredAt || null,
+                      isTimerFrozen: order?.isTimerFrozen || false,
+                      disputeResolution: order?.disputeResolution || null,
+                      credentials: order?.credentials,
+                    }}
+                    isBuyer={isBuyer}
+                    isSeller={isSeller}
+                    onAccountSecured={handleAccountSecured}
+                    isProcessing={isProcessing}
+                  />
+                )}
+
                 <section className="p-5 bg-[#151922] border border-[#242938] rounded-2xl space-y-4 shadow-xl">
                   <h2 className="text-sm font-semibold text-[#EDEFF2] border-b border-[#242938] pb-3">Transaction Details</h2>
                   <div className="flex justify-between text-xs"><span className="text-[#8A93A3]">Total Escrow Amount</span><span className="font-mono font-bold text-[#EDEFF2]">₦{Number(order?.amount || 0).toLocaleString()}</span></div>
@@ -311,7 +468,16 @@ export default function OrderDashboardPage() {
               </div>
               <div className="lg:col-span-7">
                 {isParticipant ? (
-                  <TradeChat orderId={orderId} currentUserId={currentUserId} currentUserName={currentUserName} recipientId={recipientId} orderStatus={order?.status || "AWAITING_CREDENTIALS"} />
+                  <TradeChat
+                    orderId={orderId}
+                    currentUserId={currentUserId}
+                    currentUserName={currentUserName}
+                    recipientId={recipientId}
+                    orderStatus={order?.status || "AWAITING_CREDENTIALS"}
+                    isBuyer={isBuyer}
+                    hasCredentials={hasCredentials}
+                    isChatLocked={Boolean(order?.isChatLocked)}
+                  />
                 ) : (
                   <div className="h-full min-h-48 bg-[#151922] border border-rose-500/30 rounded-2xl p-6 text-center">
                     <ShieldAlert className="mx-auto text-rose-400 mb-3" />
@@ -337,6 +503,18 @@ export default function OrderDashboardPage() {
         onClose={() => setShowReviewModal(false)}
         onSubmit={handleReviewSubmit}
         sellerName={order?.sellerName}
+      />
+      <RaiseDisputeModal
+        isOpen={showRaiseDisputeModal}
+        onClose={() => setShowRaiseDisputeModal(false)}
+        onConfirm={handleDisputeConfirm}
+        isProcessing={isProcessing}
+      />
+      <ReturnCredentialsModal
+        isOpen={showReturnCredentialsModal}
+        onClose={() => setShowReturnCredentialsModal(false)}
+        onConfirm={handleReturnCredentials}
+        isProcessing={isProcessing}
       />
     </AuthGuard>
   );

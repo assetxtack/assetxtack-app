@@ -14,7 +14,8 @@ import {
   ShieldCheck,
   Loader2,
   X,
-  CreditCard
+  CreditCard,
+  PackageX
 } from "lucide-react";
 import AuthGuard from "../../components/AuthGuard";
 import { useAuth } from "../../context/AuthContext";
@@ -30,7 +31,7 @@ type BankAccount = {
 
 type Transaction = {
   id: string;
-  type: "ESCROW_LOCK" | "ESCROW_RELEASE" | "WITHDRAWAL_INITIATED" | "WITHDRAWAL_COMPLETED" | "WITHDRAWAL_FAILED" | "LISTING_SALE" | "PLATFORM_FEE" | "REFUND" | "CREDIT";
+  type: "ESCROW_LOCK" | "ESCROW_RELEASE" | "ESCROW_CANCELLED" | "WITHDRAWAL_INITIATED" | "WITHDRAWAL_COMPLETED" | "WITHDRAWAL_FAILED" | "LISTING_SALE" | "PLATFORM_FEE" | "REFUND" | "CREDIT";
   amount: number;
   status: "pending" | "completed" | "failed";
   createdAt?: any;
@@ -232,6 +233,8 @@ export default function WalletPage() {
         return { icon: <ArrowDownLeft size={16} />, className: "bg-amber-500/10 border-amber-500/20 text-amber-400" };
       case "ESCROW_RELEASE":
         return { icon: <ArrowUpRight size={16} />, className: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" };
+      case "ESCROW_CANCELLED":
+        return { icon: <PackageX size={16} />, className: "bg-rose-500/10 border-rose-500/20 text-rose-400" };
       case "WITHDRAWAL_INITIATED":
         return { icon: <ArrowUpRight size={16} />, className: "bg-rose-500/10 border-rose-500/20 text-rose-400" };
       case "WITHDRAWAL_COMPLETED":
@@ -256,6 +259,8 @@ export default function WalletPage() {
         return "Escrow Locked";
       case "ESCROW_RELEASE":
         return "Escrow Released";
+      case "ESCROW_CANCELLED":
+        return "Escrow Cancelled";
       case "WITHDRAWAL_INITIATED":
         return "Withdrawal Requested";
       case "WITHDRAWAL_COMPLETED":
@@ -554,8 +559,10 @@ export default function WalletPage() {
                 const iconStyle = getTransactionIcon(tx.type);
                 const label = getTransactionLabel(tx.type);
                 const isDebit = ["WITHDRAWAL_INITIATED", "WITHDRAWAL_COMPLETED", "PLATFORM_FEE"].includes(tx.type);
-                const amountColor = isDebit ? "text-rose-400" : "text-emerald-400";
-                const amountPrefix = isDebit ? "-" : "+";
+                const isEscrowCancelled = tx.type === "ESCROW_CANCELLED";
+                const amountColor = isEscrowCancelled ? "text-slate-400" : isDebit ? "text-rose-400" : "text-emerald-400";
+                const amountPrefix = isEscrowCancelled ? "" : isDebit ? "-" : "+";
+                const displayAmount = isEscrowCancelled && tx.metadata?.escrowAmount ? Number(tx.metadata.escrowAmount) : tx.amount;
 
                 return (
                   <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-[#0B0E14]/40 transition-colors">
@@ -572,7 +579,7 @@ export default function WalletPage() {
 
                     <div className="text-right">
                       <span className={`text-sm font-bold font-mono block ${amountColor}`}>
-                        {amountPrefix}₦{tx.amount.toLocaleString()}
+                        {amountPrefix}₦{displayAmount.toLocaleString()}
                       </span>
                       <span className={`text-[10px] font-mono px-2 py-0.5 rounded uppercase ${
                         tx.status === "completed" 

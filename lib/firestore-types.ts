@@ -49,7 +49,7 @@ export interface Order {
   hasShieldProtection?: boolean;
   listingPlan?: "shield" | "standard" | "featured";
   buyerId: string;
-  status: "IN_ESCROW" | "AWAITING_CREDENTIALS" | "INSPECTION_PERIOD" | "DELIVERED" | "COMPLETED" | "DISPUTED" | "CANCELLED";
+  status: "IN_ESCROW" | "AWAITING_CREDENTIALS" | "INSPECTION_PERIOD" | "DELIVERED" | "COMPLETED" | "DISPUTED" | "CANCELLED" | "ADMIN_INTERVENTION" | "RETURNED_CREDENTIALS";
   rank?: string;
   skinsCount?: number;
   paymentReference?: string;
@@ -62,6 +62,14 @@ export interface Order {
   createdAt?: string | Date;
   completedAt?: string | Date;
   disputedAt?: string | Date;
+  disputeRaisedAt?: string | Date;
+  disputeReclamationDeadline?: string | Date;
+  accountSecuredAt?: string | Date;
+  disputeReason?: string;
+  disputeDetails?: string;
+  disputeImageUrl?: string;
+  returnedCredentials?: string;
+  returnedCredentialsAt?: string | Date;
   reminderFlags?: {
     seller12hSent?: boolean;
     seller2hSent?: boolean;
@@ -90,6 +98,7 @@ export interface ChatMessage {
   text: string;
   isSystemMessage?: boolean;
   isRedacted?: boolean;
+  imageUrl?: string;
   createdAt: string | Date;
 }
 
@@ -119,7 +128,7 @@ export interface WalletTransaction {
   id: string;
   userId: string;
   orderId: string;
-  type: "ESCROW_LOCK" | "ESCROW_RELEASE" | "WITHDRAWAL_INITIATED" | "PLATFORM_FEE" | "REFUND";
+  type: "ESCROW_LOCK" | "ESCROW_RELEASE" | "ESCROW_CANCELLED" | "WITHDRAWAL_INITIATED" | "PLATFORM_FEE" | "REFUND";
   amount: number;
   escrowAmount?: number;
   description: string;

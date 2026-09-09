@@ -53,6 +53,7 @@ async function cancelExpiredOrder(
     batch.update(orderRef, {
       status: "CANCELLED",
       cancelledAt: new Date(),
+      refundedAt: new Date(),
       cancellationReason: "Phase 1 expiration: Seller failed to deliver credentials within 24 hours",
     });
 
@@ -92,6 +93,22 @@ async function cancelExpiredOrder(
         metadata: {
           reason: "Phase 1 auto-cancellation",
           sellerId,
+          originalAmount: amount,
+        },
+      });
+    }
+
+    if (sellerId && amount > 0) {
+      await recordWalletTransaction({
+        userId: sellerId,
+        orderId,
+        type: "ESCROW_CANCELLED",
+        amount: 0,
+        escrowAmount: amount,
+        description: `Escrow cancelled for expired order: ${title}`,
+        metadata: {
+          reason: "Phase 1 auto-cancellation",
+          buyerId,
           originalAmount: amount,
         },
       });
