@@ -45,10 +45,13 @@ type Order = {
 };
 
 export default function OrderDashboardPage() {
-  const { orderId } = useParams<{ orderId: string }>();
+  const params = useParams<{ orderId: string }>();
+  const rawOrderId = params.orderId;
+  const orderId = Array.isArray(rawOrderId) ? rawOrderId[0] : rawOrderId;
   const { user } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [orderExists, setOrderExists] = useState(true);
+  const [orderError, setOrderError] = useState<string | null>(null);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -59,7 +62,7 @@ export default function OrderDashboardPage() {
   const [showReturnCredentialsModal, setShowReturnCredentialsModal] = useState(false);
   const [isOrderExpired, setIsOrderExpired] = useState(false);
 
-  // Prevent SSR hydration mismatches with dynamic elements/timers on Vercel
+  // Prevent layout shifts during SSR hydration phase
   const isMounted = true;
 
   const currentUserId = user?.uid ?? "";
@@ -71,51 +74,90 @@ export default function OrderDashboardPage() {
   const recipientId = isBuyer ? (order?.sellerId || "") : isSeller ? (order?.buyerId || "") : "";
 
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId) {
+      console.error("[OrderPage] Missing orderId from route params:", params);
+      setOrderError("Missing order ID in URL.");
+      setOrderExists(false);
+      setOrder(null);
+      return;
+    }
+
     let cancelled = false;
 
-    const unsubscribe = onSnapshot(
-      doc(db, "orders", orderId),
-      (snapshot) => {
-        if (cancelled) return;
-        if (!snapshot.exists()) {
-          setOrderExists(false);
-          setOrder(null);
-          return;
-        }
-        setOrderExists(true);
-        setOrder({ id: snapshot.id, ...(snapshot.data() as Omit<Order, "id">) });
-      },
-      (error) => {
-        if (cancelled) return;
-        console.error("Firestore order listener error:", error);
+    const subscribe = () => {
+      try {
+        const orderRef = doc(db, "orders", orderId);
+        const unsubscribe = onSnapshot(
+          orderRef,
+          (snapshot) => {
+            if (cancelled) return;
+            if (!snapshot.exists()) {
+              console.warn(`[OrderPage] Order document not found: orders/${orderId}`);
+              setOrderExists(false);
+              setOrder(null);
+              setOrderError(null);
+              return;
+            }
+            setOrderExists(true);
+            setOrder({ id: snapshot.id, ...(snapshot.data() as Omit<Order, "id">) });
+            setOrderError(null);
+          },
+          (error) => {
+            if (cancelled) return;
+            console.error(`[OrderPage] Firestore listener error for orders/${orderId}:`, error);
+            setOrderExists(false);
+            setOrder(null);
+            setOrderError(error instanceof Error ? error.message : "Unable to load order.");
+          }
+        );
+
+        return unsubscribe;
+      } catch (error) {
+        console.error(`[OrderPage] Failed to subscribe to order orders/${orderId}:`, error);
         setOrderExists(false);
         setOrder(null);
+        setOrderError(error instanceof Error ? error.message : "Unable to load order.");
       }
-    );
+    };
+
+    const unsubscribe = subscribe();
 
     return () => {
       cancelled = true;
-      unsubscribe();
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
     };
-  }, [orderId]);
+  }, [orderId, params]);
 
   useEffect(() => {
     if (!orderId || !isBuyer || order?.status !== "COMPLETED") return;
     let cancelled = false;
 
-    const q = query(collection(db, "reviews"), where("orderId", "==", orderId));
-    const unsub = onSnapshot(q, (snap) => {
-      if (cancelled) return;
-      setHasReviewed(!snap.empty);
-    }, (err) => {
-      if (cancelled) return;
-      console.error("Error fetching reviews for order:", err);
-    });
+    const subscribe = () => {
+      try {
+        const q = query(collection(db, "reviews"), where("orderId", "==", orderId));
+        const unsub = onSnapshot(q, (snap) => {
+          if (cancelled) return;
+          setHasReviewed(!snap.empty);
+        }, (err) => {
+          if (cancelled) return;
+          console.error(`[OrderPage] Reviews listener error for order ${orderId}:`, err);
+        });
+
+        return unsub;
+      } catch (error) {
+        console.error(`[OrderPage] Failed to subscribe to reviews for order ${orderId}:`, error);
+      }
+    };
+
+    const unsub = subscribe();
 
     return () => {
       cancelled = true;
-      unsub();
+      if (typeof unsub === "function") {
+        unsub();
+      }
     };
   }, [orderId, isBuyer, order?.status]);
 
@@ -336,10 +378,18 @@ export default function OrderDashboardPage() {
   return (
     <AuthGuard>
       <main className="p-6 max-w-7xl mx-auto space-y-6">
-        {!orderExists ? (
+        {orderError ? (
+          <div className="p-6 bg-[#151922] border border-rose-500/30 rounded-2xl text-center space-y-3">
+            <ShieldAlert className="mx-auto text-rose-400" />
+            <h1 className="text-lg font-bold text-[#EDEFF2]">Unable to load order</h1>
+            <p className="text-xs text-[#8A93A3]">{orderError}</p>
+            <Link href="/marketplace" className="text-xs font-bold text-[#FFB020] hover:underline">Back to marketplace</Link>
+          </div>
+        ) : !orderExists ? (
           <div className="p-6 bg-[#151922] border border-rose-500/30 rounded-2xl text-center space-y-3">
             <ShieldAlert className="mx-auto text-rose-400" />
             <h1 className="text-lg font-bold text-[#EDEFF2]">Order not found</h1>
+            <p className="text-xs text-[#8A93A3]">The order you are trying to view does not exist or you do not have permission to access it.</p>
             <Link href="/marketplace" className="text-xs font-bold text-[#FFB020] hover:underline">Back to marketplace</Link>
           </div>
         ) : (
