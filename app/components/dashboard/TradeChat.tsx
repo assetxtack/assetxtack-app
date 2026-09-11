@@ -299,6 +299,8 @@ export default function TradeChat({
 
   const hasPendingContent = !!pendingImage || newMessage.trim().length > 0;
 
+  const cloudinaryConfigured = typeof process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME === "string" && process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME.length > 0;
+
   return (
     <div className="flex flex-col h-[560px] w-full bg-[#151922] border border-[#242938] rounded-2xl shadow-xl overflow-hidden">
       <div className="px-4 py-3 border-b border-[#242938] bg-[#0B0E14]/50 flex items-center justify-between">
@@ -551,37 +553,38 @@ export default function TradeChat({
         )}
 
         <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
-          <CldUploadWidget
-            uploadPreset="assetxtack_preset"
-            options={{
-              cloudName: CLOUDINARY_CLOUD_NAME,
-              multiple: false,
-              maxFiles: 1,
-            }}
-            onError={handleImageError as (error: unknown, widget: unknown) => void}
-            onSuccess={handleImageUploadSuccess as (result: unknown, widget: unknown) => void}
-          >
-            {({ open, isLoading }) => (
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  setCloudinaryError(null);
-                  open();
-                }}
-                disabled={isChatDisabled || (isLoading ?? false) || sending || !currentUserId}
-                className="p-2.5 rounded-xl bg-[#0B0E14] border border-[#242938] text-[#8A93A3] hover:text-[#FFB020] hover:border-[#FFB020]/40 disabled:opacity-50 transition-colors"
-                aria-label="Attach image"
-              >
-                {isLoading ? (
-                  <Loader2 size={16} className="animate-spin text-[#FFB020]" />
-                ) : (
-                  <Paperclip size={16} />
-                )}
-              </button>
-            )}
-          </CldUploadWidget>
-
+          {cloudinaryConfigured && (
+            <CldUploadWidget
+              uploadPreset="assetxtack_preset"
+              options={{
+                cloudName: CLOUDINARY_CLOUD_NAME,
+                multiple: false,
+                maxFiles: 1,
+              }}
+              onError={handleImageError as (error: unknown, widget: unknown) => void}
+              onSuccess={handleImageUploadSuccess as (result: unknown, widget: unknown) => void}
+            >
+              {({ open, isLoading }) => (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setCloudinaryError(null);
+                    open();
+                  }}
+                  disabled={isChatDisabled || (isLoading ?? false) || sending || !currentUserId}
+                  className="p-2.5 rounded-xl bg-[#0B0E14] border border-[#242938] text-[#8A93A3] hover:text-[#FFB020] hover:border-[#FFB020]/40 disabled:opacity-50 transition-colors"
+                  aria-label="Attach image"
+                >
+                  {isLoading ? (
+                    <Loader2 size={16} className="animate-spin text-[#FFB020]" />
+                  ) : (
+                    <Paperclip size={16} />
+                  )}
+                </button>
+              )}
+            </CldUploadWidget>
+          )}
           <input
             ref={inputRef}
             type="text"

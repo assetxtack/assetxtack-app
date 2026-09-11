@@ -569,6 +569,7 @@ export default function SupportPage() {
                 </label>
 
                 <div className="space-y-3">
+                  {typeof process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME === "string" && process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME.length > 0 && (
                   <CldUploadWidget 
                     uploadPreset="assetxtack_preset"
                     options={{
@@ -587,6 +588,7 @@ export default function SupportPage() {
                       </button>
                     )}
                   </CldUploadWidget>
+                )}
 
                   {/* Uploaded Thumbnails List */}
                   {proofUrls.length > 0 && (
