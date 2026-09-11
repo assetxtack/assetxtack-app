@@ -28,6 +28,10 @@ export async function sendEmail({ to, subject, react }: SendEmailOptions) {
     throw new Error("Recipient email is required");
   }
 
+  if (!resend) {
+    throw new Error("RESEND_API_KEY is not configured on the server");
+  }
+
   const fromEmail = String(process.env.RESEND_FROM_EMAIL || "AssetXtack <notifications@assetxtack.com>");
 
   try {
