@@ -23,7 +23,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AssetXtack — Turn your publisher account into cash",
+  title: "AssetXtack - Turn your publisher account into cash",
   description: "A safe marketplace to buy and sell publisher accounts in Nigeria.",
 };
 

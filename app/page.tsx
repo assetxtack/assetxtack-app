@@ -1,15 +1,14 @@
 "use client";
-
 import { useState } from "react";
 import Link from "next/link";
 import { 
-  ShieldCheck, 
-  Wallet, 
-  ScrollText, 
-  ArrowRightLeft, 
-  ChevronRight, 
-  Sparkles, 
-  CheckCircle2, 
+  ShieldCheck,
+  Wallet,
+  ScrollText,
+  ArrowRightLeft,
+  ChevronRight,
+  Sparkles,
+  CheckCircle2,
   Zap,
   Lock,
   ChevronDown,

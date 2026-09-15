@@ -16,7 +16,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/wallet") ||
     pathname.startsWith("/support") ||
     pathname.startsWith("/seller") ||
-    pathname.startsWith("/orders");
+    pathname.startsWith("/orders") ||
+    pathname.startsWith("/profile"); // ADDED: fixes duplicate header/bell on /profile
 
   if (isDashboardRoute) {
     return <main className="flex-1">{children}</main>;
