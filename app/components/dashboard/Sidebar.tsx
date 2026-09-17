@@ -6,7 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
-import Wordmark from "../Wordmark"; // ADDED: shared wordmark component (Task 4)
+import Wordmark from "../Wordmark";
+import Avatar from "../Avatar"; // ADDED: shared avatar for the restored profile card
 import {
   LayoutDashboard,
   Store,
@@ -16,9 +17,9 @@ import {
   HelpCircle,
   X,
   LogOut,
+  CheckCircle2, // ADDED: verified status icon
+  AlertCircle, // ADDED: unverified status icon
 } from "lucide-react";
-
-// REMOVED: local XMark() and Wordmark() function definitions — now shared via ../Wordmark.tsx
 
 const NAV_ITEMS = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -76,6 +77,26 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
     });
     return () => unsubscribe();
   }, [user?.uid]);
+
+  // RESTORED: verification/seller logic needed for the profile card badge, per boss's request
+  const isVerifiedSeller = Boolean(
+    userData?.sellerVerified === true ||
+    userData?.kycStatus === "VERIFIED"
+  );
+
+  const hasCompletedSales = Number(userData?.lifetimeSales || 0) > 0;
+  const hasActiveListings = activeListingsCount > 0;
+  const isSeller = hasCompletedSales || hasActiveListings;
+
+  const badgeLabel = isVerifiedSeller
+    ? isSeller
+      ? "Verified Seller"
+      : "Verified Buyer"
+    : isSeller
+      ? "Unverified Seller"
+      : "Unverified Buyer";
+
+  const displayName = userData?.fullName || user?.displayName || user?.email?.split("@")[0] || "User";
 
   const handleSignOut = async () => {
     try {
@@ -135,9 +156,33 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
         })}
       </div>
 
-      {/* Sign Out Footer */}
-      {/* REMOVED: static profile Link card — Header.tsx is now the single profile entry point (Task 2) */}
+      {/* User Quick Info & Sign Out Footer */}
+      {/* RESTORED: profile info card with full verified/unverified details, per boss's request — header dropdown alone didn't show enough at a glance */}
       <div className="p-4 border-t border-[#242938] bg-[#0B0E14]/40">
+        <Link
+          href="/profile"
+          className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/40 transition-all group mb-3"
+        >
+          <Avatar name={displayName} size="md" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-[#EDEFF2] truncate">{displayName}</div>
+            <div className={`text-sm font-medium flex items-center gap-1.5 ${isVerifiedSeller ? "text-emerald-400" : "text-amber-400"}`}>
+              {isVerifiedSeller ? (
+                <>
+                  <CheckCircle2 size={14} />
+                  <span className="truncate">{badgeLabel}</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle size={14} />
+                  <span className="truncate">{badgeLabel}</span>
+                </>
+              )}
+            </div>
+          </div>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${isVerifiedSeller ? "bg-emerald-400" : "bg-amber-400"}`} />
+        </Link>
+
         <button
           onClick={handleSignOut}
           className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
