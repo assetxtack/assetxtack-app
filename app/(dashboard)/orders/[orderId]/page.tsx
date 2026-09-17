@@ -348,6 +348,25 @@ export default function OrderDashboardPage() {
     }
   };
 
+  const handleTimerExpire = async () => {
+    if (!order?.id) return;
+    const isDisputed = order.status === "DISPUTED";
+    const isReturnedCreds = order.status === "RETURNED_CREDENTIALS";
+    if (!isDisputed && !isReturnedCreds) return;
+    
+    try {
+      await fetch(`/api/orders/${encodeURIComponent(orderId)}/expire-timer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phase: isDisputed ? "phase1" : "phase2",
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to process timer expiration:", error);
+    }
+  };
+
   const releaseFunds = async () => {
     try {
       await updateStatus("COMPLETED", "Buyer confirmed delivery. Escrow funds released to the seller.");
@@ -445,6 +464,7 @@ export default function OrderDashboardPage() {
                     isSeller={isSeller}
                     orderId={Array.isArray(orderId) ? orderId[0] : orderId}
                     onExpireChange={setIsOrderExpired}
+                    onExpire={handleTimerExpire}
                   />
                 )}
                 {isBuyer && credentialFields.length > 0 && (
@@ -504,6 +524,7 @@ export default function OrderDashboardPage() {
                     isSeller={isSeller}
                     onAccountSecured={handleAccountSecured}
                     isProcessing={isProcessing}
+                    onExpire={handleTimerExpire}
                   />
                 )}
 

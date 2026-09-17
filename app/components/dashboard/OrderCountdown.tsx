@@ -22,6 +22,7 @@ interface OrderCountdownProps {
   isSeller: boolean;
   orderId: string;
   onExpireChange?: (expired: boolean) => void;
+  onExpire?: () => Promise<void> | void;
 }
 
 function parseTimestamp(ts: unknown): number | null {
@@ -85,9 +86,11 @@ export default function OrderCountdown({
   isSeller,
   orderId,
   onExpireChange,
+  onExpire,
 }: OrderCountdownProps) {
   const [now, setNow] = useState(() => Date.now());
   const wasExpiredRef = useRef(false);
+  const hasFiredExpireRef = useRef(false);
 
   const startedAt = getPhaseStartedAt(
     status,
@@ -121,7 +124,11 @@ export default function OrderCountdown({
       wasExpiredRef.current = isExpired;
       onExpireChange?.(isExpired);
     }
-  }, [isExpired, onExpireChange]);
+    if (isExpired && !hasFiredExpireRef.current && (status === "DISPUTED" || status === "RETURNED_CREDENTIALS") && onExpire) {
+      hasFiredExpireRef.current = true;
+      onExpire();
+    }
+  }, [isExpired, onExpireChange, onExpire, status]);
 
   if (!isReady) {
     return (
