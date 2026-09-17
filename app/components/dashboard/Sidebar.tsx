@@ -6,54 +6,28 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
-import { 
-  LayoutDashboard, 
-  Store, 
-  PlusCircle, 
-  ShieldCheck, 
-  Wallet, 
-  HelpCircle, 
+import Wordmark from "../Wordmark"; // ADDED: shared wordmark component (Task 4)
+import {
+  LayoutDashboard,
+  Store,
+  PlusCircle,
+  ShieldCheck,
+  Wallet,
+  HelpCircle,
   X,
   LogOut,
-  CheckCircle2,
-  AlertCircle,
-  User
 } from "lucide-react";
 
-function XMark({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M4 6L20 18" stroke="#FFB020" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M20 6L4 18" stroke="#7C5CFC" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M16 3.5L20 6L16 8.5" stroke="#FFB020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      <path d="M8 15.5L4 18L8 20.5" stroke="#7C5CFC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
-}
+// REMOVED: local XMark() and Wordmark() function definitions — now shared via ../Wordmark.tsx
 
-function Wordmark({ size = 20 }: { size?: number }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1 font-[var(--font-display)] font-bold text-[#EDEFF2]"
-      style={{ fontSize: size }}
-    >
-      Asset
-      <span className="inline-flex translate-y-[2px]">
-        <XMark size={size * 0.9} />
-      </span>
-      tack
-    </span>
-  );
-}
-
-  const NAV_ITEMS = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Marketplace", href: "/marketplace", icon: Store },
-    { name: "My Listings", href: "/my-listings", icon: PlusCircle },
-    { name: "Escrow Orders", href: "/escrow", icon: ShieldCheck, badge: "Live" },
-    { name: "Wallet & Payouts", href: "/wallet", icon: Wallet },
-    { name: "Support & Disputes", href: "/support", icon: HelpCircle },
-  ];
+const NAV_ITEMS = [
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Marketplace", href: "/marketplace", icon: Store },
+  { name: "My Listings", href: "/my-listings", icon: PlusCircle },
+  { name: "Escrow Orders", href: "/escrow", icon: ShieldCheck, badge: "Live" },
+  { name: "Wallet & Payouts", href: "/wallet", icon: Wallet },
+  { name: "Support & Disputes", href: "/support", icon: HelpCircle },
+];
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -65,7 +39,6 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   const router = useRouter();
   const { user, signOut } = useAuth();
 
-  // Firestore real-time verification state
   interface UserData {
     kycStatus?: string;
     sellerVerified?: boolean;
@@ -78,8 +51,6 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
   useEffect(() => {
     if (!user?.uid) return;
-
-    // Listen to changes on the user's Firestore document
     const userDocRef = doc(db, "users", user.uid);
     const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -88,48 +59,23 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
     }, (error) => {
       console.error("Error fetching live user verification state:", error);
     });
-
     return () => unsubscribeUser();
   }, [user?.uid]);
 
   useEffect(() => {
     if (!user?.uid) return;
-
     const q = query(
       collection(db, "listings"),
       where("sellerId", "==", user.uid),
       where("status", "==", "Active")
     );
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setActiveListingsCount(snapshot.size);
     }, (error) => {
       console.error("Error fetching active listings count:", error);
     });
-
     return () => unsubscribe();
   }, [user?.uid]);
-
-  // Dynamic user checks based on Firestore document
-  const isVerifiedSeller = Boolean(
-    userData?.sellerVerified === true || 
-    userData?.kycStatus === "VERIFIED"
-  );
-
-  const hasCompletedSales = Number(userData?.lifetimeSales || 0) > 0;
-  const hasActiveListings = activeListingsCount > 0;
-  const isSeller = hasCompletedSales || hasActiveListings;
-
-  const badgeLabel = isVerifiedSeller
-    ? isSeller
-      ? "Verified Seller"
-      : "Verified Buyer"
-    : isSeller
-      ? "Unverified Seller"
-      : "Unverified Buyer";
-
-  const displayName = userData?.fullName || user?.displayName || user?.email?.split("@")[0] || "Iyere";
-  const userInitial = displayName.charAt(0).toUpperCase();
 
   const handleSignOut = async () => {
     try {
@@ -147,7 +93,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
         <Link href="/dashboard" className="flex items-center">
           <Wordmark size={22} />
         </Link>
-        <button 
+        <button
           onClick={() => setMobileOpen(false)}
           className="lg:hidden text-[#8A93A3] hover:text-[#EDEFF2] p-1.5 rounded-lg bg-[#0B0E14]"
         >
@@ -189,34 +135,9 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
         })}
       </div>
 
-      {/* User Quick Info & Sign Out Footer */}
+      {/* Sign Out Footer */}
+      {/* REMOVED: static profile Link card — Header.tsx is now the single profile entry point (Task 2) */}
       <div className="p-4 border-t border-[#242938] bg-[#0B0E14]/40">
-        <Link
-          href="/profile"
-          className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/40 transition-all group"
-        >
-          <div className="w-10 h-10 rounded-lg bg-[#FFB020]/20 border border-[#FFB020]/30 text-[#FFB020] font-bold text-base flex items-center justify-center shrink-0">
-            {userInitial}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-[#EDEFF2] truncate">{displayName}</div>
-            <div className={`text-sm font-medium flex items-center gap-1.5 ${isVerifiedSeller ? "text-emerald-400" : "text-amber-400"}`}>
-              {isVerifiedSeller ? (
-                <>
-                  <CheckCircle2 size={14} />
-                  <span className="truncate">{badgeLabel}</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle size={14} />
-                  <span className="truncate">{badgeLabel}</span>
-                </>
-              )}
-            </div>
-          </div>
-          <span className={`w-2 h-2 rounded-full shrink-0 ${isVerifiedSeller ? "bg-emerald-400" : "bg-amber-400"}`} />
-        </Link>
-
         <button
           onClick={handleSignOut}
           className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
@@ -230,15 +151,13 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
       <aside className="hidden lg:block w-64 fixed inset-y-0 left-0 z-30">
         {navContent}
       </aside>
 
-      {/* Mobile Backdrop & Drawer */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div 
+          <div
             className="fixed inset-0 bg-[#0B0E14]/80 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
