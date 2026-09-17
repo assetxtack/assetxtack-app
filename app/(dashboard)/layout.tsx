@@ -1,8 +1,8 @@
 "use client";
-
 import { useState } from "react";
 import Sidebar from "../components/dashboard/Sidebar";
 import Header from "../components/dashboard/Header";
+import Footer from "../components/Footer"; // Added footer now shows on dashboard routes too
 
 export default function DashboardLayout({
   children,
@@ -23,8 +23,10 @@ export default function DashboardLayout({
         <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
           {children}
         </main>
+
+        {/* ADDED: Footer rendered at the bottom of every dashboard page */}
+        <Footer />
       </div>
     </div>
-    
   );
 }

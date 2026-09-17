@@ -1,15 +1,7 @@
 import Link from "next/link";
+import Wordmark from "./Wordmark"; // ADDED: shared wordmark component (Task 4)
 
-function XMark({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M4 6L20 18" stroke="#FFB020" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M20 6L4 18" stroke="#7C5CFC" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M16 3.5L20 6L16 8.5" stroke="#FFB020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      <path d="M8 15.5L4 18L8 20.5" stroke="#7C5CFC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
-}
+// REMOVED: local XMark() function — now shared via ./Wordmark.tsx
 
 const COLUMNS = [
   {
@@ -45,12 +37,9 @@ export default function Footer() {
     <footer className="border-t border-[#242938] bg-[#0B0E14]">
       <div className="max-w-6xl mx-auto px-5 py-14 grid grid-cols-2 md:grid-cols-4 gap-10">
         <div className="col-span-2 md:col-span-1">
-          <div className="inline-flex items-center gap-1 font-[var(--font-display)] font-bold text-[#EDEFF2] text-lg mb-3">
-            Asset
-            <span className="inline-flex translate-y-[1px]">
-              <XMark size={15} />
-            </span>
-            tack
+          {/* CHANGED: shared Wordmark component */}
+          <div className="mb-3">
+            <Wordmark size={20} />
           </div>
           <p className="text-xs text-[#8A93A3] leading-relaxed max-w-[220px]">
             A safe marketplace to buy and sell publisher accounts in Nigeria.
