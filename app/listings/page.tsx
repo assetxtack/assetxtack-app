@@ -18,6 +18,7 @@ import {
   Zap,
   ChevronDown,
 } from "lucide-react";
+import MarketplaceListingCard from "@/components/listings/MarketplaceListingCard";
 
 interface ListingData {
   id: string;
@@ -40,14 +41,8 @@ interface ListingData {
   hasShieldProtection?: boolean;
   views?: number;
   createdAt?: unknown;
+  structuredAssets?: Record<string, unknown>;
 }
-
-const formatAttributeLabel = (attr: string) => {
-  return attr
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (str) => str.toUpperCase())
-    .trim();
-};
 
 export default function ListingsPage() {
   const router = useRouter();
@@ -207,51 +202,7 @@ export default function ListingsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((item) => (
-              <Link
-                key={item.id}
-                href={`/marketplace/${item.id}`}
-                className="group relative rounded-2xl p-[1.5px] overflow-hidden transition-all duration-300 hover:scale-[1.02] block"
-              >
-                {item.isFeatured && (
-                  <div className="absolute inset-[-1000%] animate-border-spin bg-[conic-gradient(from_90deg_at_50%_50%,#151922_0%,#FFB020_50%,#151922_100%)] opacity-80 group-hover:opacity-100 transition-opacity" />
-                )}
-                <div className="relative h-full bg-[#151922] rounded-2xl p-5 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm font-bold text-[#8A93A3] uppercase tracking-wider">{item.rank || "Unranked"}</span>
-                      <span className="text-sm font-bold text-[#FFB020] flex items-center gap-1.5">
-                        <Star size={14} fill="#FFB020" /> {typeof item.sellerRating === "number" ? item.sellerRating.toFixed(1) : typeof item.sellerRating === "string" ? item.sellerRating : "5.0"}
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-bold text-[#EDEFF2] line-clamp-2 mb-4 group-hover:text-white transition-colors">
-                      {item.title}
-                    </h3>
-                    {item.gameAttributes && Object.keys(item.gameAttributes).length > 0 ? (
-                      <div className="flex items-center gap-3 text-sm text-[#8A93A3] mb-4 flex-wrap">
-                        {Object.entries(item.gameAttributes).slice(0, 3).map(([key, value]) => (
-                          <span key={key}>
-                            {formatAttributeLabel(key)}: <strong className="text-[#EDEFF2]">{String(value)}</strong>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-4 text-sm text-[#8A93A3] mb-4">
-                        <span>Rank: <strong className="text-[#EDEFF2]">{item.rank || "Unranked"}</strong></span>
-                        <span>Price: <strong className="text-emerald-400">₦{(item.price || 0).toLocaleString()}</strong></span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between pt-4 border-t border-[#242938]">
-                    <div>
-                      <span className="text-xs text-[#8A93A3] font-semibold block uppercase mb-1">Price</span>
-                      <strong className="text-lg font-black text-emerald-400 font-mono">₦{(item.price || 0).toLocaleString()}</strong>
-                    </div>
-                    <span className="text-sm font-semibold text-[#8A93A3] flex items-center gap-1.5 group-hover:text-[#FFB020] transition-colors">
-                      <Eye size={16} /> View Details
-                    </span>
-                  </div>
-                </div>
-              </Link>
+              <MarketplaceListingCard key={item.id} listing={item} />
             ))}
           </div>
         )}

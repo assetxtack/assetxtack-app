@@ -32,6 +32,7 @@ interface ReclamationWorkflowProps {
   isSeller: boolean;
   onAccountSecured: (checklist: { assetIntegrity: boolean; credentialSecurity: boolean; noUnauthorizedBinding: boolean }) => void;
   isProcessing: boolean;
+  onExpire?: () => Promise<void> | void;
 }
 
 function parseCredentialLine(line: string) {
@@ -149,6 +150,7 @@ export default function ReclamationWorkflow({
   isSeller,
   onAccountSecured,
   isProcessing,
+  onExpire,
 }: ReclamationWorkflowProps) {
   const [checklist, setChecklist] = useState({
     assetIntegrity: false,
@@ -207,6 +209,7 @@ export default function ReclamationWorkflow({
             isBuyer={isBuyer}
             isSeller={isSeller}
             orderId={order.id}
+            onExpire={onExpire}
           />
 
           {isBuyer && (
@@ -229,6 +232,7 @@ export default function ReclamationWorkflow({
             isBuyer={isBuyer}
             isSeller={isSeller}
             orderId={order.id}
+            onExpire={onExpire}
           />
         </div>
       )}
