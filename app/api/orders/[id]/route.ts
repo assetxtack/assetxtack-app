@@ -5,6 +5,7 @@ import { recordWalletTransaction } from "@/lib/wallet";
 import { sendDisputeEmail } from "@/lib/email/sendDisputeEmail";
 import { sendOrderCompletedEmail } from "@/lib/email/sendOrderCompletedEmail";
 import { sendCredentialsReturnedEmail } from "@/lib/email/sendCredentialsReturnedEmail";
+import { calculateFeeBreakdown } from "@/lib/fees";
 
 export const dynamic = "force-dynamic";
 
@@ -125,9 +126,19 @@ export async function PATCH(request: Request) {
       const orderAmount = Number(orderData.amount || 0);
       const listingPlan = String(orderData.listingPlan || "");
       const orderHasShield = Boolean(orderData.hasShieldProtection);
-      const feePercentage = (listingPlan === "shield" || listingPlan === "featured" || orderHasShield) ? 0.10 : 0.05;
-      const platformFee = Math.round(orderAmount * feePercentage);
-      const sellerPayout = orderAmount - platformFee;
+      const sellerVerified = Boolean(orderData.sellerVerified);
+      const kycStatus = String(orderData.kycStatus || "");
+
+      const feeBreakdown = calculateFeeBreakdown(orderAmount, {
+        listingPlan: listingPlan as "standard" | "featured" | "shield" | "",
+        hasShieldProtection: orderHasShield,
+        sellerVerified,
+        kycStatus: kycStatus as "unverified" | "pending" | "VERIFIED" | "rejected",
+      });
+
+      const platformFee = feeBreakdown.platformFee;
+      const sellerPayout = feeBreakdown.sellerPayout;
+      const feePercentage = feeBreakdown.feePercentage;
 
       if (orderAmount > 0) {
         await recordWalletTransaction({
@@ -137,7 +148,7 @@ export async function PATCH(request: Request) {
           amount: sellerPayout,
           escrowAmount: orderAmount,
           description: `Escrow release for order ${orderId.slice(0, 6)}`,
-          metadata: { buyerId, orderId, platformFee, feePercentage, grossAmount: orderAmount },
+          metadata: { buyerId, orderId, platformFee, feePercentage, feeTier: feeBreakdown.planType, grossAmount: orderAmount },
         });
 
         await recordWalletTransaction({
@@ -145,8 +156,8 @@ export async function PATCH(request: Request) {
           orderId,
           type: "PLATFORM_FEE",
           amount: platformFee,
-          description: `Platform fee for order ${orderId.slice(0, 6)} (${orderHasShield ? "Featured" : "Standard"})`,
-          metadata: { buyerId, orderId, feePercentage, grossAmount: orderAmount },
+          description: `Platform fee for order ${orderId.slice(0, 6)} (${feeBreakdown.planType.replace("_", " ")})`,
+          metadata: { buyerId, orderId, feePercentage, feeTier: feeBreakdown.planType, grossAmount: orderAmount },
         });
       }
 

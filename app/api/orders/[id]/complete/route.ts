@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { sendNotification } from "@/lib/notifications";
 import { recordWalletTransaction } from "@/lib/wallet";
+import { calculateFeeBreakdown } from "@/lib/fees";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +47,20 @@ export async function POST(request: Request) {
       if (amount) {
         const listingPlan = orderData?.listingPlan;
         const orderHasShield = Boolean(orderData?.hasShieldProtection);
-        const feePercentage = (listingPlan === "shield" || listingPlan === "featured" || orderHasShield) ? 0.10 : 0.05;
+        const sellerVerified = Boolean(orderData?.sellerVerified);
+        const kycStatus = String(orderData?.kycStatus || "");
         const orderAmount = Number(amount);
-        const platformFee = Math.round(orderAmount * feePercentage);
-        const sellerPayout = orderAmount - platformFee;
+
+        const feeBreakdown = calculateFeeBreakdown(orderAmount, {
+          listingPlan: listingPlan as "standard" | "featured" | "shield" | "",
+          hasShieldProtection: orderHasShield,
+          sellerVerified,
+          kycStatus: kycStatus as "unverified" | "pending" | "VERIFIED" | "rejected",
+        });
+
+        const platformFee = feeBreakdown.platformFee;
+        const sellerPayout = feeBreakdown.sellerPayout;
+        const feePercentage = feeBreakdown.feePercentage;
 
         await recordWalletTransaction({
           userId: sellerIdFromOrder,
@@ -58,7 +69,7 @@ export async function POST(request: Request) {
           amount: sellerPayout,
           escrowAmount: orderAmount,
           description: `Escrow release for order ${orderId.slice(0, 6)}`,
-          metadata: { buyerId, orderId, platformFee, feePercentage, grossAmount: orderAmount },
+          metadata: { buyerId, orderId, platformFee, feePercentage, feeTier: feeBreakdown.planType, grossAmount: orderAmount },
         });
 
         await recordWalletTransaction({
@@ -66,8 +77,8 @@ export async function POST(request: Request) {
           orderId,
           type: "PLATFORM_FEE",
           amount: platformFee,
-          description: `Platform fee for order ${orderId.slice(0, 6)} (${orderHasShield ? "Featured" : "Standard"})`,
-          metadata: { buyerId, orderId, feePercentage, grossAmount: orderAmount },
+          description: `Platform fee for order ${orderId.slice(0, 6)} (${feeBreakdown.planType.replace("_", " ")})`,
+          metadata: { buyerId, orderId, feePercentage, feeTier: feeBreakdown.planType, grossAmount: orderAmount },
         });
       }
 

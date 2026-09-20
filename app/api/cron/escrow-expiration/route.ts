@@ -5,6 +5,7 @@ import { recordWalletTransaction } from "@/lib/wallet";
 import { sendUrgentReminderEmail } from "@/lib/email/sendUrgentReminderEmail";
 import { sendAutoRefundEmail } from "@/lib/email/sendAutoRefundEmail";
 import { sendDisputeResolvedEmail } from "@/lib/email/sendDisputeResolvedEmail";
+import { calculateFeeBreakdown } from "@/lib/fees";
 
 export const dynamic = "force-dynamic";
 
@@ -143,15 +144,21 @@ async function completeExpiredInspection(
   const title = String(orderData.title || "Unknown listing");
   const listingPlan = String(orderData.listingPlan || "");
   const orderHasShield = Boolean(orderData.hasShieldProtection);
+  const sellerVerified = Boolean(orderData.sellerVerified);
+  const kycStatus = String(orderData.kycStatus || "");
+
+  const feeBreakdown = calculateFeeBreakdown(amount, {
+    listingPlan: listingPlan as "standard" | "featured" | "shield" | "",
+    hasShieldProtection: orderHasShield,
+    sellerVerified,
+    kycStatus: kycStatus as "unverified" | "pending" | "VERIFIED" | "rejected",
+  });
+
+  const feePercentage = feeBreakdown.feePercentage;
+  const platformFee = feeBreakdown.platformFee;
+  const sellerPayout = feeBreakdown.sellerPayout;
 
   try {
-    const feePercentage =
-      listingPlan === "shield" || listingPlan === "featured" || orderHasShield
-        ? 0.1
-        : 0.05;
-    const platformFee = Math.round(amount * feePercentage);
-    const sellerPayout = amount - platformFee;
-
     const batch = adminDb.batch();
 
     const orderRef = adminDb.collection("orders").doc(orderId);
@@ -168,6 +175,8 @@ async function completeExpiredInspection(
       amount,
       sellerPayout,
       platformFee,
+      feePercentage,
+      feeTier: feeBreakdown.planType,
       buyerId,
       sellerId,
       reason: "Timer expired: INSPECTION_PERIOD > 24h",
@@ -201,6 +210,7 @@ async function completeExpiredInspection(
           orderId,
           platformFee,
           feePercentage,
+          feeTier: feeBreakdown.planType,
           grossAmount: amount,
           autoCompleted: true,
         },
@@ -320,12 +330,19 @@ async function resolveDisputedPhase1AutoRelease(
       const orderAmount = Number(orderData.amount || 0);
       const listingPlan = String(orderData.listingPlan || "");
       const orderHasShield = Boolean(orderData.hasShieldProtection);
-      const feePercentage =
-        listingPlan === "shield" || listingPlan === "featured" || orderHasShield
-          ? 0.1
-          : 0.05;
-      const platformFee = Math.round(orderAmount * feePercentage);
-      const sellerPayout = orderAmount - platformFee;
+      const sellerVerified = Boolean(orderData.sellerVerified);
+      const kycStatus = String(orderData.kycStatus || "");
+
+      const feeBreakdown = calculateFeeBreakdown(orderAmount, {
+        listingPlan: listingPlan as "standard" | "featured" | "shield" | "",
+        hasShieldProtection: orderHasShield,
+        sellerVerified,
+        kycStatus: kycStatus as "unverified" | "pending" | "VERIFIED" | "rejected",
+      });
+
+      const platformFee = feeBreakdown.platformFee;
+      const sellerPayout = feeBreakdown.sellerPayout;
+      const feePercentage = feeBreakdown.feePercentage;
 
       await recordWalletTransaction({
         userId: sellerId,
@@ -340,6 +357,7 @@ async function resolveDisputedPhase1AutoRelease(
           orderId,
           platformFee,
           feePercentage,
+          feeTier: feeBreakdown.planType,
           grossAmount: orderAmount,
           autoResolved: true,
         },
@@ -350,8 +368,8 @@ async function resolveDisputedPhase1AutoRelease(
         orderId,
         type: "PLATFORM_FEE",
         amount: platformFee,
-        description: `Platform fee (dispute auto-resolve): ${title.slice(0, 30)}`,
-        metadata: { buyerId, orderId, feePercentage, grossAmount: orderAmount },
+        description: `Platform fee (dispute auto-resolve): ${title.slice(0, 30)} (${feeBreakdown.planType.replace("_", " ")})`,
+        metadata: { buyerId, orderId, feePercentage, feeTier: feeBreakdown.planType, grossAmount: orderAmount },
       });
     }
 
