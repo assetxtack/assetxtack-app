@@ -7,6 +7,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isUserId(expectedId) {
+      return isAuthenticated() && request.auth.uid == expectedId;
+    }
+
     function isOrderParticipant(orderId) {
       return isAuthenticated() &&
         (get(/databases/$(database)/documents/orders/$(orderId)).data.buyerId == request.auth.uid ||

@@ -1,16 +1,26 @@
 interface AvatarProps {
   name: string;
   size?: "sm" | "md" | "lg";
+  src?: string | null;
 }
 
-// Single source of truth for avatar color, shape, and initial logic — used by Header, Sidebar, Navbar
 const SIZE_CLASSES: Record<NonNullable<AvatarProps["size"]>, string> = {
   sm: "w-8 h-8 text-sm",
   md: "w-10 h-10 text-base",
   lg: "w-12 h-12 text-lg",
 };
 
-export default function Avatar({ name, size = "sm" }: AvatarProps) {
+export default function Avatar({ name, size = "sm", src }: AvatarProps) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className={`${SIZE_CLASSES[size]} rounded-lg object-cover`}
+      />
+    );
+  }
+
   const initial = (name || "U").charAt(0).toUpperCase();
 
   return (

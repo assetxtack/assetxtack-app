@@ -42,6 +42,9 @@ interface ListingData {
   views?: number;
   createdAt?: unknown;
   structuredAssets?: Record<string, unknown>;
+  sellerName?: string;
+  sellerId?: string;
+  sellerVerified?: boolean;
 }
 
 export default function ListingsPage() {
@@ -51,7 +54,6 @@ export default function ListingsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRank, setSelectedRank] = useState("All");
-  const [selectedGame, setSelectedGame] = useState("All");
   const [maxPrice, setMaxPrice] = useState<number | "">("");
   const [sortBy, setSortBy] = useState<"featured" | "price_asc" | "price_desc">("featured");
 
@@ -69,7 +71,6 @@ export default function ListingsPage() {
   }, []);
 
   const ranks = Array.from(new Set(listings.map((l) => l.rank).filter((r): r is string => typeof r === "string" && r.length > 0)));
-  const games = Array.from(new Set(listings.map((l) => l.gameName).filter((g): g is string => typeof g === "string" && g.length > 0)));
 
   const filtered = listings
     .filter((item) => {
@@ -77,9 +78,8 @@ export default function ListingsPage() {
         (item.title ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.id.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesRank = selectedRank === "All" || item.rank === selectedRank;
-      const matchesGame = selectedGame === "All" || item.gameName === selectedGame;
       const matchesPrice = maxPrice === "" || (typeof item.price === "number" && item.price <= maxPrice);
-      return matchesSearch && matchesRank && matchesGame && matchesPrice;
+      return matchesSearch && matchesRank && matchesPrice;
     })
     .sort((a, b) => {
       if (sortBy === "price_asc") return (a.price || 0) - (b.price || 0);
@@ -148,19 +148,6 @@ export default function ListingsPage() {
                 <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A93A3] pointer-events-none" />
               </div>
               <div className="relative">
-                <select
-                  value={selectedGame}
-                  onChange={(e) => setSelectedGame(e.target.value)}
-                  className="appearance-none bg-[#0B0E14] border border-[#242938] rounded-xl pl-4 pr-10 py-2.5 text-sm text-[#EDEFF2] focus:outline-none focus:border-[#FFB020]/50 transition-colors"
-                >
-                  <option value="All">All Games</option>
-                  {games.map((g) => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A93A3] pointer-events-none" />
-              </div>
-              <div className="relative">
                 <input
                   type="number"
                   placeholder="Max price"
@@ -200,7 +187,7 @@ export default function ListingsPage() {
             <p className="text-sm text-[#8A93A3]">Try adjusting your search or filters.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-3">
             {filtered.map((item) => (
               <MarketplaceListingCard key={item.id} listing={item} />
             ))}

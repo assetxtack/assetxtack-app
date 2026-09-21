@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
 import NotificationDropdown from "../NotificationDropdown";
+import Avatar from "../Avatar";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import {
@@ -54,7 +55,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const isVerified = Boolean(userData?.sellerVerified === true || userData?.kycStatus === "VERIFIED");
   const displayName = userData?.fullName || user?.displayName || user?.email?.split("@")[0] || "User";
-  const userInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <header className="h-16 bg-[#151922] border-b border-[#242938] sticky top-0 z-20 px-4 md:px-8 flex items-center justify-between gap-4">
@@ -88,9 +88,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             onClick={() => setProfileOpen(!profileOpen)}
             className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/30 transition-colors"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#7C5CFC]/20 text-[#7C5CFC] font-bold text-sm flex items-center justify-center border border-[#7C5CFC]/30 shrink-0">
-              {userInitial}
-            </div>
+            <Avatar name={displayName} size="sm" src={user?.photoURL || null} />
             {/* REMOVED: name span — just showing the initial avatar + chevron now, per feedback */}
             <ChevronDown size={14} className={`text-[#8A93A3] transition-transform ${profileOpen ? "rotate-180" : ""}`} />
           </button>
@@ -100,9 +98,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               {/* Profile Header */}
               <div className="p-4 border-b border-[#242938] bg-[#0B0E14]/50">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-[#7C5CFC]/20 border border-[#7C5CFC]/30 text-[#7C5CFC] font-bold text-lg flex items-center justify-center shrink-0">
-                    {userInitial}
-                  </div>
+                  <Avatar name={displayName} size="lg" src={user?.photoURL || null} />
                   <div className="flex-1 min-w-0">
                     <div className="text-base font-bold text-[#EDEFF2] truncate">{displayName}</div>
                     <div className={`text-sm font-medium flex items-center gap-1 ${isVerified ? "text-emerald-400" : "text-amber-400"}`}>

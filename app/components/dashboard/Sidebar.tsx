@@ -45,6 +45,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
     sellerVerified?: boolean;
     fullName?: string;
     lifetimeSales?: number;
+    avatarUrl?: string;
   }
 
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -163,7 +164,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
           href="/profile"
           className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0E14] border border-[#242938] hover:border-[#FFB020]/40 transition-all group mb-3"
         >
-          <Avatar name={displayName} size="md" />
+          <Avatar name={displayName} size="md" src={user?.photoURL || userData?.avatarUrl || null} />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-[#EDEFF2] truncate">{displayName}</div>
             <div className={`text-sm font-medium flex items-center gap-1.5 ${isVerifiedSeller ? "text-emerald-400" : "text-amber-400"}`}>
