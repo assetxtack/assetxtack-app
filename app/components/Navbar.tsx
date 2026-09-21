@@ -90,7 +90,7 @@ export default function Navbar() {
                 className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#242938] bg-[#151922]/60 hover:bg-[#151922] hover:border-[#FFB020]/30 transition-all"
               >
                 {/* CHANGED: shared Avatar component (was a custom amber div) */}
-                <Avatar name={displayName} size="sm" />
+                <Avatar name={displayName} size="sm" src={user?.photoURL || null} />
                 <ChevronDown size={16} className={`text-[#8A93A3] transition-transform ${profileOpen ? "rotate-180" : ""}`} />
               </button>
 
@@ -99,7 +99,7 @@ export default function Navbar() {
                   <div className="p-4 border-b border-[#242938] bg-[#0B0E14]/50">
                     <div className="flex items-center gap-3">
                       {/* CHANGED: shared Avatar component, md size for panel */}
-                      <Avatar name={displayName} size="md" />
+                      <Avatar name={displayName} size="md" src={user?.photoURL || null} />
                       <div className="flex-1 min-w-0">
                         <div className="text-base font-bold text-[#EDEFF2] truncate">{displayName}</div>
                         <div className={`text-sm font-medium flex items-center gap-1 ${isVerified ? "text-emerald-400" : "text-amber-400"}`}>

@@ -66,8 +66,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const profileData = docSnap.exists() ? docSnap.data() : {};
 
             setUser({
-              ...authUser,
-              isVerified: Boolean(profileData.sellerVerified || profileData.isVerified),
+      ...authUser,
+      photoURL: (authUser as any).photoURL || "",
+      isVerified: Boolean(profileData.sellerVerified || profileData.isVerified),
               kycStatus: profileData.kycStatus || "none",
               username: profileData.username || authUser.displayName || "",
             } as AppUser);

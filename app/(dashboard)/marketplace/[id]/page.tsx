@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../../components/AuthGuard";
 import { 
@@ -27,12 +28,15 @@ import {
   X,
   CreditCard,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Globe
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../../context/AuthContext";
 import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { initializePaystackTransaction } from "@/lib/paystack";
+import { getGameConfig } from "@/lib/config/gameConfigs";
+import { getAllListingAttrs, getAllCredentials } from "@/lib/listings/utils";
 
 function XMark({ size = 22 }: { size?: number }) {
   return (
@@ -104,10 +108,15 @@ const formatAttributeLabel = (attr: string) => {
  */
 const formatCredentialLabel = (key: string) => {
   // Handle specific known keys
-  if (key === "vkBoundStatus") return "VKontakte (VK) Status";
-  if (key === "facebookBoundStatus") return "Facebook Account Status";
-  if (key === "tiktokBoundStatus") return "TikTok Account Status";
-  if (key === "linkedAccount") return "Linked Account";
+   if (key === "vkBoundStatus") return "VKontakte (VK) Status";
+   if (key === "facebookBoundStatus") return "Facebook Account Status";
+   if (key === "tiktokBoundStatus") return "TikTok Account Status";
+   if (key === "googlePlayStatus") return "Google Play Status";
+   if (key === "appleIdStatus") return "Apple ID Status";
+   if (key === "gameCenterStatus") return "Game Center Status";
+   if (key === "twitterBoundStatus") return "Twitter / X Bound Status";
+   if (key === "supercellIdStatus") return "Supercell ID Status";
+   if (key === "linkedAccount") return "Linked Account";
   if (key === "moontonStatus") return "Moonton Account Status";
   if (key === "riotAccountStatus") return "Riot Account Status";
   if (key === "steamStatus") return "Steam Account Status";
@@ -115,10 +124,11 @@ const formatCredentialLabel = (key: string) => {
   if (key === "supercellIdStatus") return "Supercell ID Status";
   if (key === "emailChangeAvailability") return "Email Change Availability";
   if (key === "linkedSocials") return "Linked Socials";
-  if (key === "ownershipType") return "Account Ownership";
-  if (key === "region") return "Region";
-  if (key === "primeStatus") return "Prime Status";
-  if (key === "platform") return "Platform";
+   if (key === "ownershipType") return "Account Ownership";
+   if (key === "region") return "Region";
+   if (key === "primeStatus") return "Prime Status";
+   if (key === "platform") return "Platform";
+   if (key === "unboundConfirmation") return "All Linked Accounts Unbound (Certified)";
   
   // Fallback: convert camelCase to Title Case
   return key
@@ -133,6 +143,9 @@ const formatCredentialLabel = (key: string) => {
  */
 const getSecurityStatusColor = (value: unknown): string => {
   if (!value) return "text-[#8A93A3]"; // Default gray for empty
+  
+  // Boolean values: true = confirmed safe (green), false = not confirmed (warning)
+  if (typeof value === "boolean") return value ? "text-emerald-400" : "text-[#8A93A3]";
   
   const valueStr = String(value).toLowerCase();
   
@@ -546,14 +559,17 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const isProtected = listing.sellerVerified;
+   const isProtected = listing.sellerVerified;
   const screenshots = listing.images && listing.images.length > 0 ? listing.images : [
-    "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80",
-    "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&q=80",
-    "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&q=80",
-    "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80",
-    "https://images.unsplash.com/photo-1511882150382-421056c89033?w=800&q=80",
-  ];
+     "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80",
+     "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&q=80",
+     "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&q=80",
+     "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80",
+     "https://images.unsplash.com/photo-1511882150382-421056c89033?w=800&q=80",
+   ];
+   const allListingAttrs = getAllListingAttrs(listing as never);
+   const gameConfig = getGameConfig(listing.gameId || "");
+   const allCredentials = getAllCredentials(listing as never);
 
   return (
     <AuthGuard>
@@ -836,33 +852,62 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
             {/* Tab Content */}
             {activeTab === "overview" && (
               <div className="space-y-6">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
-                    <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Rank</span>
-                    <strong className="text-sm md:text-base font-extrabold text-[#EDEFF2] block mt-1">{listing.rank || "N/A"}</strong>
-                  </div>
-                  <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
-                    <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Price</span>
-                    <strong className="text-sm md:text-base font-extrabold text-emerald-400 block mt-1">₦{(listing.price || 0).toLocaleString()}</strong>
-                  </div>
-                  {listing.gameAttributes && Object.entries(listing.gameAttributes).slice(0, 2).map(([key, value]) => (
-                    <div key={key} className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
-                      <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">{formatAttributeLabel(key)}</span>
-                      <strong className="text-sm md:text-base font-extrabold text-[#FFB020] block mt-1">{String(value)}</strong>
+                {/* Platform Badges — Server/Region & Device Type */}
+                <div className="flex flex-wrap gap-2">
+                  {allListingAttrs.serverRegion && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0B0E14] border border-[#242938] text-xs font-semibold text-[#EDEFF2] overflow-visible">
+                      <Globe size={14} className="text-[#FFB020]" />
+                      Server/Region: {String(allListingAttrs.serverRegion)}
+                    </span>
+                  )}
+                  {allListingAttrs.deviceType && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0B0E14] border border-[#242938] text-xs font-semibold text-[#EDEFF2] overflow-visible">
+                      <Smartphone size={14} className="text-[#FFB020]" />
+                      Device: {String(allListingAttrs.deviceType)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Price Display */}
+                <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl">
+                  <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Escrow Price</span>
+                  <strong className="text-lg md:text-xl font-black text-emerald-400 block mt-1">
+                    {(listing.price || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 })}
+                  </strong>
+                </div>
+
+                {/* Full Attribute Display — all game attributes from config, zero truncation */}
+                <div className="space-y-2">
+                  {gameConfig && gameConfig.attributes.map((attr) => {
+                    const val = allListingAttrs[attr.key];
+                    if (val === undefined || val === null || val === "") return null;
+                    return (
+                      <div
+                        key={attr.key}
+                        className="flex items-center justify-between p-3 bg-[#151922] border border-[#242938] rounded-xl overflow-visible"
+                      >
+                        <span className="text-xs font-semibold text-[#8A93A3] uppercase tracking-wider overflow-visible">{attr.label}</span>
+                        <span className="text-xs font-bold text-[#EDEFF2] text-right max-w-[60%] break-words whitespace-normal overflow-visible">
+                          {typeof val === "number" ? val.toLocaleString() : String(val)}
+                        </span>
+                      </div>
+                    );
+                  })}
+
+                  {!gameConfig && (
+                    <div className="text-[10px] text-[#8A93A3]">
+                      {Object.entries(allListingAttrs).map(([key, value]) => (
+                        <div
+                          key={key}
+                          className="flex items-center justify-between p-3 bg-[#151922] border border-[#242938] rounded-xl overflow-visible"
+                        >
+                          <span className="font-semibold overflow-visible">{formatAttributeLabel(key)}</span>
+                          <span className="font-bold text-[#EDEFF2] break-words whitespace-normal overflow-visible">
+                            {typeof value === "number" ? value.toLocaleString() : String(value)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  {(!listing.gameAttributes || Object.keys(listing.gameAttributes).length === 0) && (
-                    <>
-                      <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
-                        <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Skins Count</span>
-                        <strong className="text-sm md:text-base font-extrabold text-[#FFB020] block mt-1">{listing.skins ?? listing.skinsCount ?? 0}</strong>
-                      </div>
-                      <div className="bg-[#151922] border border-[#242938] p-4 rounded-2xl text-center">
-                        <span className="text-[10px] uppercase font-bold text-[#8A93A3] block">Win Rate</span>
-                        <strong className="text-sm md:text-base font-extrabold text-emerald-400 block mt-1">{listing.winRate || "N/A"}</strong>
-                      </div>
-                    </>
                   )}
                 </div>
 
@@ -906,9 +951,9 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
                 
                 <div className="space-y-2 pt-2">
                   {(() => {
-                    // Filter and map credentials from listing.credentials
-                    const credentials = listing?.credentials || {};
-                    const securityEntries = Object.entries(credentials)
+                     // Use unified credentials from getAllCredentials (merges gameAttributes + legacy fields)
+                     const credentials = allCredentials;
+                     const securityEntries = Object.entries(credentials)
                       .filter(([key]) => !shouldExcludeCredential(key))
                       .map(([key, value]) => ({ key, value }));
                     
@@ -971,10 +1016,12 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
 
                 {/* Main Large Image Viewer */}
                 <div className="relative w-full h-[320px] md:h-[420px] bg-[#0B0E14] rounded-2xl border border-[#242938] overflow-hidden group">
-                  <img 
+                  <Image 
                     src={screenshots[activeImageIndex]} 
                     alt={`Screenshot ${activeImageIndex + 1}`} 
-                    className="w-full h-full object-cover transition-all duration-300"
+                    fill
+                    className="object-cover transition-all duration-300"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 600px"
                   />
 
                   <button
@@ -1008,7 +1055,7 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
                           : "border-[#242938] opacity-60 hover:opacity-100"
                       }`}
                     >
-                      <img src={img} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+                      <Image src={img} alt={`Thumb ${idx + 1}`} fill className="object-cover" sizes="80px" />
                       <span className="absolute bottom-0.5 right-1 text-[9px] font-bold bg-[#0B0E14]/80 px-1 rounded text-white">
                         #{idx + 1}
                       </span>

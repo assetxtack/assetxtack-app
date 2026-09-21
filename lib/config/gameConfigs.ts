@@ -1,7 +1,7 @@
 export interface GameAttribute {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select';
+  type: "text" | "number" | "select";
   placeholder: string;
   required: boolean;
   options?: string[];
@@ -10,7 +10,7 @@ export interface GameAttribute {
 export interface GameCredential {
   key: string;
   label: string;
-  type: 'text' | 'select' | 'boolean';
+  type: "text" | "select" | "boolean";
   placeholder?: string;
   options?: string[];
 }
@@ -18,152 +18,288 @@ export interface GameCredential {
 export interface GameConfig {
   id: string;
   name: string;
-  category: 'MOBILE' | 'PC' | 'CONSOLE';
+  category: "MOBILE" | "PC" | "CONSOLE";
   ranks: string[];
   attributes: GameAttribute[];
   credentials: GameCredential[];
   badges?: string[];
 }
 
-const UNBOUND_OPTIONS = ['Unbound (Clean)', 'Bound - Handing Over Login', 'Bound - Not Transferable'];
+const deviceTypeAttribute: GameAttribute = {
+  key: "deviceType",
+  label: "Device Type",
+  type: "select",
+  placeholder: "Select device...",
+  required: true,
+  options: ["iOS", "Android"],
+};
+
+const serverRegionAttribute: GameAttribute = {
+  key: "serverRegion",
+  label: "Server / Region",
+  type: "text",
+  placeholder: "e.g. Asia, NA, Europe, Server 123",
+  required: true,
+};
+
+const rankAttribute: GameAttribute = {
+  key: "rank",
+  label: "Rank / Level",
+  type: "text",
+  placeholder: "e.g. Mythic, Level 85, Town Hall 15",
+  required: true,
+};
+
+export const notableAssetsAttribute: GameAttribute = {
+  key: "notableAssets",
+  label: "Notable In-Game Assets",
+  type: "text",
+  placeholder: "e.g. rare skins, maxed heroes, valuable items",
+  required: true,
+};
+
+export const universalAttributes: GameAttribute[] = [
+  serverRegionAttribute,
+  deviceTypeAttribute,
+  rankAttribute,
+];
+
+export const universalAttributeKeys = universalAttributes.map((a) => a.key);
+
+const numberAttribute = (
+  key: string,
+  label: string,
+  placeholder: string,
+  required = false
+): GameAttribute => ({
+  key,
+  label,
+  type: "number",
+  placeholder,
+  required,
+});
+
+const textAttribute = (
+  key: string,
+  label: string,
+  placeholder: string,
+  required = false
+): GameAttribute => ({
+  key,
+  label,
+  type: "text",
+  placeholder,
+  required,
+});
 
 export const GAME_CONFIGS: Record<string, GameConfig> = {
-  'mobile-legends': {
-    id: 'mobile-legends',
-    name: 'Mobile Legends: Bang Bang',
-    category: 'MOBILE',
-    ranks: ['Mythical Immortal', 'Mythical Glory', 'Mythical Honor', 'Mythic', 'Legend', 'Epic', 'Grandmaster', 'Master', 'Elite', 'Warrior'],
+  "mobile-legends": {
+    id: "mobile-legends",
+    name: "Mobile Legends: Bang Bang",
+    category: "MOBILE",
+    ranks: [
+      "Mythical Immortal",
+      "Mythical Glory",
+      "Mythical Honor",
+      "Mythic",
+      "Legend",
+      "Epic",
+      "Grandmaster",
+      "Master",
+      "Elite",
+      "Warrior",
+    ],
     attributes: [
-      { key: 'rank', label: 'Rank', type: 'select', placeholder: 'Select rank...', required: true, options: ['Mythical Immortal', 'Mythical Glory', 'Mythical Honor', 'Mythic', 'Legend', 'Epic', 'Grandmaster', 'Master', 'Elite', 'Warrior'] },
-      { key: 'skinsCount', label: 'In-Game Assets Count', type: 'number', placeholder: 'e.g. 85', required: true },
-      { key: 'heroesCount', label: 'Characters Count', type: 'number', placeholder: 'e.g. 122', required: true },
-      { key: 'winRate', label: 'Win Rate', type: 'text', placeholder: 'e.g. 62.4%', required: false },
+      ...universalAttributes,
+      numberAttribute("skinsCount", "Skin Count", "e.g. 85", true),
+      numberAttribute("heroesCount", "Hero Count", "e.g. 122", true),
+      textAttribute("winRate", "Win Rate", "e.g. 62.4%"),
+      notableAssetsAttribute,
     ],
-    credentials: [
-      { key: 'moontonStatus', label: 'Moonton Account Status', type: 'select', options: ['Clean Email (Handover Ready)', 'Bound - Email Change Available', 'Bound - Full Control'] },
-      { key: 'emailChangeAvailability', label: 'Email Change Availability', type: 'select', options: ['Available', 'Not Available', 'Pending'] },
-      { key: 'linkedSocials', label: 'Linked Socials', type: 'select', options: ['None', 'VK Only', 'Facebook Only', 'TikTok Only', 'Multiple'] },
+    credentials: [],
+    badges: [
+      "Collector",
+      "Legend",
+      "PRIME",
+      "KOF",
+      "Aspirants",
+      "M-Series",
+      "Star Wars",
+      "STUN",
+      "11.11",
+      "Kung-Fu Panda",
+      "Soul Vessel",
+      "JJK",
+      "Street Fighters",
+      "Dawning",
+      "Transformer",
+      "Eternal Mythic",
+      "Eternal Mythical Glory",
+      "Eternal Mythical Immortal",
     ],
-    badges: ['Collector', 'Legend', 'PRIME', 'KOF', 'Aspirants', 'M-Series', 'Zodiac', 'STUN', '11.11', '515'],
   },
-  'clash-of-clans': {
-    id: 'clash-of-clans',
-    name: 'Clash of Clans',
-    category: 'MOBILE',
-    ranks: ['Town Hall 1', 'Town Hall 2', 'Town Hall 3', 'Town Hall 4', 'Town Hall 5', 'Town Hall 6', 'Town Hall 7', 'Town Hall 8', 'Town Hall 9', 'Town Hall 10', 'Town Hall 11', 'Town Hall 12', 'Town Hall 13', 'Town Hall 14', 'Town Hall 15', 'Town Hall 16', 'Town Hall 17'],
+  "call-of-duty-mobile": {
+    id: "call-of-duty-mobile",
+    name: "Call of Duty Mobile",
+    category: "MOBILE",
+    ranks: ["Legendary", "Master", "Diamond", "Platinum", "Gold", "Silver", "Bronze"],
     attributes: [
-      { key: 'rank', label: 'Town Hall Level', type: 'select', placeholder: 'Select TH level...', required: true, options: ['Town Hall 1', 'Town Hall 2', 'Town Hall 3', 'Town Hall 4', 'Town Hall 5', 'Town Hall 6', 'Town Hall 7', 'Town Hall 8', 'Town Hall 9', 'Town Hall 10', 'Town Hall 11', 'Town Hall 12', 'Town Hall 13', 'Town Hall 14', 'Town Hall 15', 'Town Hall 16', 'Town Hall 17'] },
-      { key: 'gems', label: 'Gems Count', type: 'number', placeholder: 'e.g. 50000', required: true },
-      { key: 'heroLevels', label: 'Hero Levels', type: 'text', placeholder: 'e.g. King: 80, Queen: 75', required: false },
+      ...universalAttributes,
+      numberAttribute("level", "Account Level", "e.g. 150", true),
+      textAttribute("weapons", "Weapons Unlocked", "e.g. 45 weapons", true),
+      textAttribute("operatorSkins", "Operator Skins", "e.g. 12 operator skins"),
+      textAttribute("kdRatio", "K/D Ratio", "e.g. 4.25"),
+      notableAssetsAttribute,
     ],
-    credentials: [
-      { key: 'supercellIdStatus', label: 'Supercell ID Status', type: 'select', options: ['Bound - Handing Over', 'Unbound - New Owner Creates'] },
-      { key: 'ownershipType', label: 'Account Ownership', type: 'select', options: ['Original Owner', 'Purchased Account', 'Developer Account'] },
+    credentials: [],
+    badges: [
+      "Mythic Weapon (Max)",
+      "Mythic Operator",
+      "Legendary Operator",
+      "Prestige Weapon",
+      "Legacy Weapon",
+      "Legendary Vehicle",
     ],
-    badges: ['Max Level Base', 'Legendary Troops', 'Rare Skins', 'Full Walls', 'Dragon Level', 'P.E.K.K.A', 'Magic Items'],
   },
-  'pubg-mobile': {
-    id: 'pubg-mobile',
-    name: 'PUBG Mobile',
-    category: 'MOBILE',
-    ranks: ['Ace', 'Ace Master', 'Ace Dominator', 'Ace Challenger', 'Conqueror', 'Crown', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze'],
+  "pubg-mobile": {
+    id: "pubg-mobile",
+    name: "PUBG Mobile",
+    category: "MOBILE",
+    ranks: [
+      "Ace",
+      "Ace Master",
+      "Ace Dominator",
+      "Ace Challenger",
+      "Conqueror",
+      "Crown",
+      "Diamond",
+      "Platinum",
+      "Gold",
+      "Silver",
+      "Bronze",
+    ],
     attributes: [
-      { key: 'rank', label: 'Rank', type: 'select', placeholder: 'Select rank...', required: true, options: ['Ace', 'Ace Master', 'Ace Dominator', 'Ace Challenger', 'Conqueror', 'Crown', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze'] },
-      { key: 'seasonLevel', label: 'Season Level', type: 'number', placeholder: 'e.g. 45', required: true },
-      { key: 'cosmetics', label: 'Cosmetics Count', type: 'number', placeholder: 'e.g. 120', required: false },
-      { key: 'kdRatio', label: 'K/D Ratio', type: 'text', placeholder: 'e.g. 4.25', required: false },
+      ...universalAttributes,
+      numberAttribute("level", "Account Level", "e.g. 85", true),
+      textAttribute("kdRatio", "K/D Ratio", "e.g. 4.25"),
+      numberAttribute("cosmeticsCount", "Cosmetics Count", "e.g. 120"),
+      numberAttribute("ucBalance", "UC Balance", "e.g. 2500"),
+      notableAssetsAttribute,
     ],
-    credentials: [
-      { key: 'linkedAccount', label: 'Linked Account', type: 'select', options: ['None', 'Facebook', 'Google Play', 'Twitter', 'Multiple'] },
-      { key: 'region', label: 'Region', type: 'select', options: ['Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Africa'] },
+    credentials: [],
+    badges: [
+      "Maxed X-Suit",
+      "M416 Glacier (Max)",
+      "Mythic Fashion Title",
+      "Ultimate Set",
+      "Upgradable Vehicle",
     ],
-    badges: ['Maxed X-Suit', 'M416 Glacier (Max)', 'Mythic Fashion Title', 'Ultimate Set', 'Upgradable Vehicle'],
   },
-  'valorant': {
-    id: 'valorant',
-    name: 'Valorant',
-    category: 'PC',
-    ranks: ['Radiant', 'Immortal', 'Ascendant', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze', 'Iron'],
+  "blood-strike": {
+    id: "blood-strike",
+    name: "Blood Strike",
+    category: "MOBILE",
+    ranks: ["Master", "Diamond", "Platinum", "Gold", "Silver", "Bronze"],
     attributes: [
-      { key: 'rank', label: 'Rank', type: 'select', placeholder: 'Select rank...', required: true, options: ['Radiant', 'Immortal', 'Ascendant', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze', 'Iron'] },
-      { key: 'agents', label: 'Agents Unlocked', type: 'number', placeholder: 'e.g. 18', required: true },
-      { key: 'skins', label: 'Skins Count', type: 'number', placeholder: 'e.g. 45', required: false },
-      { key: 'hoursPlayed', label: 'Hours Played', type: 'number', placeholder: 'e.g. 1200', required: false },
+      ...universalAttributes,
+      numberAttribute("level", "Account Level", "e.g. 80", true),
+      textAttribute("kdRatio", "K/D Ratio", "e.g. 3.80"),
+      textAttribute("weapons", "Favorite Weapons", "e.g. M4, AK, AWM"),
+      numberAttribute("skinsCount", "Weapon Skin Count", "e.g. 35"),
+      notableAssetsAttribute,
     ],
-    credentials: [
-      { key: 'riotAccountStatus', label: 'Riot Account Status', type: 'select', options: ['Clean - Email Change Available', 'Bound - Original Email'] },
-      { key: 'region', label: 'Region', type: 'select', options: ['NA', 'EU', 'APAC', 'LATAM', 'KR'] },
-    ],
-    badges: ['Champions 2021', 'Champions 2022', 'Champions 2023', 'VCT LOCK//IN', 'Elderflame', 'Radiant Entertainment System', 'Kuronami', 'Spectrum'],
+    credentials: [],
+    badges: ["Mythic Weapon", "Legendary Operator", "Elite Skin", "Battle Pass Max"],
   },
-  'cs2': {
-    id: 'cs2',
-    name: 'Counter-Strike 2',
-    category: 'PC',
-    ranks: ['Premier Rating (Numerical)', 'Silver I', 'Silver II', 'Silver III', 'Silver IV', 'Silver Elite', 'Silver Elite Master', 'Gold Nova I', 'Gold Nova II', 'Gold Nova III', 'Gold Nova IV', 'Master Guardian I', 'Master Guardian II', 'MGE', 'DMG', 'Legendary Eagle', 'Legendary Eagle Master', 'Supreme', 'The Global Elite'],
+  "honor-of-kings": {
+    id: "honor-of-kings",
+    name: "Honor of Kings",
+    category: "MOBILE",
+    ranks: ["King", "Master", "Diamond", "Platinum", "Gold", "Silver", "Bronze"],
     attributes: [
-      { key: 'rank', label: 'Rank', type: 'select', placeholder: 'Select rank...', required: true, options: ['Premier Rating (Numerical)', 'Silver I', 'Silver II', 'Silver III', 'Silver IV', 'Silver Elite', 'Silver Elite Master', 'Gold Nova I', 'Gold Nova II', 'Gold Nova III', 'Gold Nova IV', 'Master Guardian I', 'Master Guardian II', 'MGE', 'DMG', 'Legendary Eagle', 'Legendary Eagle Master', 'Supreme', 'The Global Elite'] },
-      { key: 'hoursPlayed', label: 'Hours Played', type: 'number', placeholder: 'e.g. 2500', required: true },
-      { key: 'inventoryValue', label: 'Inventory Value ($/₦)', type: 'text', placeholder: 'e.g. $5000', required: false },
-      { key: 'medals', label: 'Service Medals Count', type: 'number', placeholder: 'e.g. 5', required: false },
+      ...universalAttributes,
+      numberAttribute("level", "Account Level", "e.g. 30", true),
+      numberAttribute("heroesCount", "Hero Count", "e.g. 80", true),
+      numberAttribute("skinsCount", "Skin Count", "e.g. 120", true),
+      textAttribute("winRate", "Win Rate", "e.g. 58.5%"),
+      notableAssetsAttribute,
     ],
-    credentials: [
-      { key: 'steamStatus', label: 'Steam Account Status', type: 'select', options: ['Clean - Email Available', 'Bound - Original Email', 'Market Limited'] },
-      { key: 'primeStatus', label: 'Prime Status', type: 'select', options: ['Active', 'Inactive', 'Pending'] },
-    ],
-    badges: ['Contraband (Howl)', 'Dragon Lore', 'Blue Gem (T1)', 'Doppler Gem', 'Katowice 2014 Holo', 'FN Crimson Web', '100% Fade'],
+    credentials: [],
+    badges: ["Legendary Skin", "Limited Skin", "MVP", "Collector", "Ranked King"],
   },
-  'fortnite': {
-    id: 'fortnite',
-    name: 'Fortnite',
-    category: 'CONSOLE',
-    ranks: ['Unranked', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Elite', 'Champion', 'Ultimate'],
+  "free-fire": {
+    id: "free-fire",
+    name: "Free Fire",
+    category: "MOBILE",
+    ranks: ["Grandmaster", "Heroic", "Diamond", "Platinum", "Gold", "Silver", "Bronze"],
     attributes: [
-      { key: 'rank', label: 'Rank', type: 'select', placeholder: 'Select rank...', required: true, options: ['Unranked', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Elite', 'Champion', 'Ultimate'] },
-      { key: 'battlePass', label: 'Battle Pass Level', type: 'number', placeholder: 'e.g. 100', required: true },
-      { key: 'skins', label: 'Skins Count', type: 'number', placeholder: 'e.g. 85', required: false },
-      { key: 'vbucks', label: 'V-Bucks Balance', type: 'number', placeholder: 'e.g. 10000', required: false },
-      { key: 'wins', label: 'Total Wins', type: 'number', placeholder: 'e.g. 350', required: false },
+      ...universalAttributes,
+      numberAttribute("level", "Account Level", "e.g. 75", true),
+      numberAttribute("booyahs", "Booyahs", "e.g. 1200", true),
+      textAttribute("characters", "Characters Unlocked", "e.g. Alok, K, Chrono", true),
+      numberAttribute("skinsCount", "Skin Count", "e.g. 65"),
+      textAttribute("petLevels", "Pet Levels", "e.g. Dreki Lv. 7, Rockie Lv. 5"),
+      notableAssetsAttribute,
     ],
-    credentials: [
-      { key: 'epicGamesStatus', label: 'Epic Games Status', type: 'select', options: ['Clean - Email Available', 'Bound - Original Email'] },
-      { key: 'platform', label: 'Platform', type: 'select', options: ['PSN', 'Xbox', 'Nintendo Switch', 'PC', 'Mobile'] },
-    ],
-    badges: ['Renegade Raider', 'Aerial Assault Trooper', 'Black Knight', 'Pink Ghoul Trooper', 'Purple Skull Trooper', 'Galaxy', 'IKONIK', 'Travis Scott'],
+    credentials: [],
+    badges: ["Rare Bundle", "Gun Skin", "Emote", "Pet Max", "Booyah Pass"],
   },
-  'call-of-duty-mobile': {
-    id: 'call-of-duty-mobile',
-    name: 'Call of Duty Mobile',
-    category: 'MOBILE',
-    ranks: ['Legendary', 'Master', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze'],
+  "clash-of-clans": {
+    id: "clash-of-clans",
+    name: "Clash of Clans",
+    category: "MOBILE",
+    ranks: [
+      "Town Hall 1",
+      "Town Hall 2",
+      "Town Hall 3",
+      "Town Hall 4",
+      "Town Hall 5",
+      "Town Hall 6",
+      "Town Hall 7",
+      "Town Hall 8",
+      "Town Hall 9",
+      "Town Hall 10",
+      "Town Hall 11",
+      "Town Hall 12",
+      "Town Hall 13",
+      "Town Hall 14",
+      "Town Hall 15",
+      "Town Hall 16",
+      "Town Hall 17",
+    ],
     attributes: [
-      { key: 'rank', label: 'Rank', type: 'select', placeholder: 'Select rank...', required: true, options: ['Legendary', 'Master', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze'] },
-      { key: 'weapons', label: 'Weapons Unlocked', type: 'text', placeholder: 'e.g. 45 weapons', required: true },
-      { key: 'operatorSkins', label: 'Operator Skins', type: 'text', placeholder: 'e.g. 12 skins', required: false },
-      { key: 'tier', label: 'Tier', type: 'text', placeholder: 'e.g. Legendary', required: true },
+      ...universalAttributes,
+      numberAttribute("gems", "Gems Count", "e.g. 50000", true),
+      textAttribute("heroLevels", "Hero Levels", "e.g. King 80, Queen 75"),
+      textAttribute("troopLevels", "Troop Levels", "e.g. Dragons Lv. 9"),
+      notableAssetsAttribute,
     ],
-    credentials: [
-      { key: 'linkedAccount', label: 'Linked Account', type: 'select', options: ['None', 'Facebook', 'Google Play', 'Twitter', 'Multiple'] },
-      { key: 'region', label: 'Region', type: 'select', options: ['NA', 'EU', 'APAC', 'LATAM'] },
+    credentials: [],
+    badges: [
+      "Max Level Base",
+      "Legendary Troops",
+      "Rare Skins",
+      "Full Walls",
+      "Dragon Level",
+      "P.E.K.K.A",
+      "Magic Items",
     ],
-    badges: ['Mythic Weapon (Max)', 'Mythic Operator', 'Legendary Operator', 'Prestige Weapon', 'Legacy Weapon', 'Legendary Vehicle'],
   },
-  'league-of-legends': {
-    id: 'league-of-legends',
-    name: 'League of Legends',
-    category: 'PC',
-    ranks: ['Challenger', 'Grandmaster', 'Master', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze', 'Iron'],
+  "rise-of-kingdoms": {
+    id: "rise-of-kingdoms",
+    name: "Rise of Kingdoms",
+    category: "MOBILE",
+    ranks: ["Governor Level 1", "Governor Level 50", "Governor Level 100", "Governor Level 150"],
     attributes: [
-      { key: 'rank', label: 'Rank', type: 'select', placeholder: 'Select rank...', required: true, options: ['Challenger', 'Grandmaster', 'Master', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze', 'Iron'] },
-      { key: 'champions', label: 'Champions Unlocked', type: 'number', placeholder: 'e.g. 80', required: true },
-      { key: 'skins', label: 'Skins Count', type: 'number', placeholder: 'e.g. 120', required: false },
-      { key: 'hoursPlayed', label: 'Hours Played', type: 'number', placeholder: 'e.g. 3000', required: false },
+      ...universalAttributes,
+      numberAttribute("power", "Power", "e.g. 25000000", true),
+      textAttribute("commanders", "Commanders", "e.g. Scipio, Saladin, Minamoto", true),
+      textAttribute("resources", "Resource Stockpile", "e.g. 10M food, 8M wood"),
+      textAttribute("kingdomAge", "Kingdom Age", "e.g. 450 days"),
+      notableAssetsAttribute,
     ],
-    credentials: [
-      { key: 'riotAccountStatus', label: 'Riot Account Status', type: 'select', options: ['Clean - Email Change Available', 'Bound - Original Email'] },
-      { key: 'region', label: 'Region', type: 'select', options: ['NA', 'EUW', 'EUNE', 'KR', 'CN', 'JP', 'OCE', 'LAN', 'LAS', 'TR', 'RU', 'BR'] },
-    ],
-    badges: ['PAX Skins', 'Black Alistar', 'Silver Kayle', 'UFO Corki', 'King Rammus', 'Ultimate Skin', 'Prestige Edition', 'Mythic/Hextech'],
+    credentials: [],
+    badges: ["Legendary Commander", "Sun Tzu", "Neville", "Elite Troops", "City Skin"],
   },
 };
 
@@ -172,5 +308,11 @@ export const getGameConfig = (gameId: string): GameConfig | undefined => {
 };
 
 export const getGameConfigById = getGameConfig;
+
+export const getAttributeLabel = (gameId: string, key: string): string | undefined => {
+  const config = getGameConfig(gameId);
+  if (!config) return undefined;
+  return config.attributes.find((a) => a.key === key)?.label;
+};
 
 export const allGameConfigs: GameConfig[] = Object.values(GAME_CONFIGS);

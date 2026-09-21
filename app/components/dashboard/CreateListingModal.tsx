@@ -23,6 +23,18 @@ interface CreateListingModalProps {
 
 const ACCOUNT_TYPE_OPTIONS = ["Full Account Transfer"] as const;
 
+const UNBOUND_PLATFORMS = [
+  { key: "googlePlayStatus", label: "Google Play", boundText: "Bound (Handing over Google email/pass)" },
+  { key: "appleIdStatus", label: "Apple ID", boundText: "Bound (Handing over Apple ID login)" },
+  { key: "gameCenterStatus", label: "Game Center", boundText: "Bound (Handing over Game Center login)" },
+  { key: "facebookBoundStatus", label: "Facebook", boundText: "Bound (Handing over FB login)" },
+  { key: "vkBoundStatus", label: "VKontakte (VK)", boundText: "Bound (Handing over VK email/pass)" },
+  { key: "twitterBoundStatus", label: "Twitter / X", boundText: "Bound (Handing over Twitter login)" },
+  { key: "tiktokBoundStatus", label: "TikTok", boundText: "Bound (Handing over TikTok login)" },
+  { key: "supercellIdStatus", label: "Supercell ID", boundText: "Bound (Handing over Supercell ID login)" },
+  { key: "moontonStatus", label: "Moonton", boundText: "Bound (Handing over Moonton login)" },
+] as const;
+
 const getGameFormDefaultValues = (config?: GameConfig) => {
   const attributeDefaults = Object.fromEntries((config?.attributes ?? []).map((attr) => [attr.key, ""]));
   const credentialDefaults = Object.fromEntries((config?.credentials ?? []).map((cred) => [cred.key, ""]));
@@ -76,10 +88,16 @@ const getInitialFormData = (isVerifiedSeller: boolean, game?: Game) => ({
   tier: "",
   champions: "",
 
-  // Linked Account Unbind Statuses
-  vkBoundStatus: "",
-  facebookBoundStatus: "",
-  tiktokBoundStatus: "",
+   // Linked Account Unbind Statuses (universal)
+   vkBoundStatus: "",
+   facebookBoundStatus: "",
+   tiktokBoundStatus: "",
+   googlePlayStatus: "",
+   appleIdStatus: "",
+   gameCenterStatus: "",
+   twitterBoundStatus: "",
+   supercellIdStatus: "",
+   moontonStatus: "",
 
   // Credentials Payload (collected post-payment via escrow)
   accountEmail: "",
@@ -174,20 +192,29 @@ export default function CreateListingModal({
     const nextConfig = nextGame ? getGameConfig(nextGame.id) : undefined;
     const defaults = getGameFormDefaultValues(nextConfig);
 
-    setFormData((prev) => ({
-      ...prev,
-      ...defaults,
-      title: prev.title,
-      price: prev.price,
-      description: prev.description,
-      gameId: nextGame?.id ?? "",
-      gameName: nextGame?.name ?? "",
-      listingPlan: prev.listingPlan,
-      shieldDurationDays: prev.shieldDurationDays,
-      gameAttributes: {},
-      credentials: {},
-      featuredSkins: [],
-    }));
+     setFormData((prev) => ({
+       ...prev,
+       ...defaults,
+       title: prev.title,
+       price: prev.price,
+       description: prev.description,
+       gameId: nextGame?.id ?? "",
+       gameName: nextGame?.name ?? "",
+       listingPlan: prev.listingPlan,
+       shieldDurationDays: prev.shieldDurationDays,
+       gameAttributes: {},
+       credentials: {},
+       featuredSkins: [],
+       vkBoundStatus: "",
+       facebookBoundStatus: "",
+       tiktokBoundStatus: "",
+       googlePlayStatus: "",
+       appleIdStatus: "",
+       gameCenterStatus: "",
+       twitterBoundStatus: "",
+       supercellIdStatus: "",
+       moontonStatus: "",
+     }));
   };
 
   const activeGameId = game?.id ?? (selectedGameId || formData.gameId);
@@ -355,8 +382,8 @@ export default function CreateListingModal({
               <Gamepad2 size={24} />
             </div>
              <div>
-              <h2 className="text-lg font-bold font-display">List Publisher Account</h2>
-              <p className="text-sm text-[#8A93A3]">Step {currentStep} of 4 — Verify linked accounts and enter credentials.</p>
+               <h2 className="text-lg font-bold font-display">Create New Listing</h2>
+               <p className="text-sm text-[#8A93A3]">Step {currentStep} of 4 — Enter account details and upload proof screenshots.</p>
             </div>
           </div>
           <button 
@@ -479,9 +506,10 @@ export default function CreateListingModal({
                     <label className="text-sm font-semibold text-[#EDEFF2] block mb-1.5">Selling Price (₦ NGN) *</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-mono text-[#8A93A3]">₦</span>
-                      <input
-                        type="number"
-                        placeholder="45000"
+                     <input
+                         type="number"
+                         min="0"
+                         placeholder="45000"
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                         className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl pl-9 pr-4 py-3 text-sm text-[#EDEFF2] font-mono transition-all"
@@ -627,43 +655,21 @@ export default function CreateListingModal({
              <Lock size={14} /> 1. Confirm Linked Account Unbind Status
            </h4>
 
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-             <div>
-               <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">VKontakte (VK)</label>
-               <select
-                 value={formData.vkBoundStatus}
-                 onChange={(e) => setFormData({ ...formData, vkBoundStatus: e.target.value })}
-                 className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2 text-xs text-[#EDEFF2] focus:border-[#FFB020]"
-               >
-                 <option value="Unbound">Unbound (Clean)</option>
-                 <option value="Bound - Handing Over Login">Bound (Handing over VK email/pass)</option>
-               </select>
-             </div>
-
-             <div>
-               <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">Facebook Account</label>
-               <select
-                 value={formData.facebookBoundStatus}
-                 onChange={(e) => setFormData({ ...formData, facebookBoundStatus: e.target.value })}
-                 className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2 text-xs text-[#EDEFF2] focus:border-[#FFB020]"
-               >
-                 <option value="Unbound">Unbound (Clean)</option>
-                 <option value="Bound - Handing Over Login">Bound (Handing over FB login)</option>
-               </select>
-             </div>
-
-             <div>
-               <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">TikTok Account</label>
-               <select
-                 value={formData.tiktokBoundStatus}
-                 onChange={(e) => setFormData({ ...formData, tiktokBoundStatus: e.target.value })}
-                 className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2 text-xs text-[#EDEFF2] focus:border-[#FFB020]"
-               >
-                 <option value="Unbound">Unbound (Clean)</option>
-                 <option value="Bound - Handing Over Login">Bound (Handing over TikTok login)</option>
-               </select>
-             </div>
-           </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {UNBOUND_PLATFORMS.map((platform) => (
+                <div key={platform.key}>
+                  <label className="text-xs text-[#8A93A3] block mb-1 font-semibold">{platform.label}</label>
+                  <select
+                    value={(formData as Record<string, unknown>)[platform.key] as string}
+                    onChange={(e) => setFormData({ ...formData, [platform.key]: e.target.value })}
+                    className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl px-3 py-2 text-xs text-[#EDEFF2] focus:border-[#FFB020]"
+                  >
+                    <option value="Unbound">Unbound (Clean)</option>
+                    <option value="Bound - Handing Over Login">{platform.boundText}</option>
+                  </select>
+                </div>
+              ))}
+            </div>
          </div>
 
          {/* Account Transferability Confirmation */}

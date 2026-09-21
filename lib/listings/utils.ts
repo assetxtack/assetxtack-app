@@ -16,6 +16,9 @@ export type ListingWithAttrs = Listing & {
   tiktokBoundStatus?: string;
   googlePlayStatus?: string;
   appleIdStatus?: string;
+  gameCenterStatus?: string;
+  twitterBoundStatus?: string;
+  supercellIdStatus?: string;
   has2FA?: string;
   secondaryPassword?: string;
   twoFactorDetails?: string;
@@ -139,7 +142,8 @@ export function getAllCredentials(listing: ListingWithAttrs): Record<string, str
   const legacyKeys = [
     "accountEmail", "accountPassword", "secondaryPassword", "has2FA",
     "twoFactorDetails", "moontonStatus", "vkBoundStatus", "facebookBoundStatus",
-    "tiktokBoundStatus", "googlePlayStatus", "appleIdStatus",
+    "tiktokBoundStatus", "googlePlayStatus", "appleIdStatus", "gameCenterStatus",
+    "twitterBoundStatus", "supercellIdStatus",
   ];
 
   for (const key of legacyKeys) {
@@ -205,6 +209,9 @@ export function buildListingPayload(
   const universalCredentialKeys = [
     "accountEmail", "accountPassword", "secondaryPassword",
     "has2FA", "twoFactorDetails", "unboundConfirmation",
+    "vkBoundStatus", "facebookBoundStatus", "tiktokBoundStatus",
+    "googlePlayStatus", "appleIdStatus", "gameCenterStatus",
+    "twitterBoundStatus", "supercellIdStatus", "moontonStatus",
   ];
 
   for (const key of universalCredentialKeys) {

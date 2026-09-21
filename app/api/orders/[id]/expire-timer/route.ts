@@ -4,6 +4,7 @@ import { sendNotification } from "@/lib/notifications";
 import { recordWalletTransaction } from "@/lib/wallet";
 import { sendDisputeResolvedEmail } from "@/lib/email/sendDisputeResolvedEmail";
 import { sendAutoRefundEmail } from "@/lib/email/sendAutoRefundEmail";
+import { calculateFeeBreakdown } from "@/lib/fees";
 
 export const dynamic = "force-dynamic";
 
@@ -89,12 +90,19 @@ async function resolveDisputedPhase1AutoRelease(
       const orderAmount = Number(orderData.amount || 0);
       const listingPlan = String(orderData.listingPlan || "");
       const orderHasShield = Boolean(orderData.hasShieldProtection);
-      const feePercentage =
-        listingPlan === "shield" || listingPlan === "featured" || orderHasShield
-          ? 0.1
-          : 0.05;
-      const platformFee = Math.round(orderAmount * feePercentage);
-      const sellerPayout = orderAmount - platformFee;
+      const sellerVerified = Boolean(orderData.sellerVerified);
+      const kycStatus = String(orderData.kycStatus || "");
+
+      const feeBreakdown = calculateFeeBreakdown(orderAmount, {
+        listingPlan: listingPlan as "standard" | "featured" | "shield" | "",
+        hasShieldProtection: orderHasShield,
+        sellerVerified,
+        kycStatus: kycStatus as "unverified" | "pending" | "VERIFIED" | "rejected",
+      });
+
+      const platformFee = feeBreakdown.platformFee;
+      const sellerPayout = feeBreakdown.sellerPayout;
+      const feePercentage = feeBreakdown.feePercentage;
 
       await recordWalletTransaction({
         userId: sellerId,
@@ -109,6 +117,7 @@ async function resolveDisputedPhase1AutoRelease(
           orderId,
           platformFee,
           feePercentage,
+          feeTier: feeBreakdown.planType,
           grossAmount: orderAmount,
           autoResolved: true,
         },
@@ -119,8 +128,8 @@ async function resolveDisputedPhase1AutoRelease(
         orderId,
         type: "PLATFORM_FEE",
         amount: platformFee,
-        description: `Platform fee (dispute auto-resolve): ${title.slice(0, 30)}`,
-        metadata: { buyerId, orderId, feePercentage, grossAmount: orderAmount },
+        description: `Platform fee (dispute auto-resolve): ${title.slice(0, 30)} (${feeBreakdown.planType.replace("_", " ")})`,
+        metadata: { buyerId, orderId, feePercentage, feeTier: feeBreakdown.planType, grossAmount: orderAmount },
       });
     }
 

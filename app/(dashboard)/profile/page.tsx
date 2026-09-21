@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useRef, useCallback } from "react";
 import AuthGuard from "../../components/AuthGuard";
 import { useAuth } from "../../context/AuthContext";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import {
   doc,
   onSnapshot,
   collection,
   query,
   where,
+  updateDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import {
   ShieldCheck,
@@ -22,10 +23,13 @@ import {
   Loader2,
   MapPin,
   Award,
-  StarHalf,
   MessageSquare,
   ShoppingBag,
   Store,
+  Camera,
+  Save,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 
 interface UserData {
@@ -33,15 +37,13 @@ interface UserData {
   sellerVerified?: boolean;
   kycStatus?: string;
   lifetimeSales?: number;
-  createdAt?: unknown;
   bio?: string;
   storeTagline?: string;
   averageRating?: number;
   totalReviews?: number;
-  email?: string;
-  phoneNumber?: string;
   location?: string;
   website?: string;
+  avatarUrl?: string;
 }
 
 interface Review {
@@ -61,6 +63,57 @@ interface Listing {
   status?: string;
 }
 
+const ANTI_SCAM_PATTERNS: RegExp[] = [
+  /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/,
+  /\b\d{10,}\b/,
+  /@\S+/,
+  /\b(gmail|yahoo|hotmail|outlook|protonmail|icloud|mail)\b/i,
+  /https?:\/\//i,
+  /www\./i,
+  /\bnet\b/i,
+  /\bcom\b/i,
+  /\.ng/i,
+  /\bwhatsapp\b/i,
+  /\btelegram\b/i,
+  /\bdiscord\b/i,
+  /\bpay\s*direct\b/i,
+  /\binstagram\b/i,
+  /\btiktok\b/i,
+  /\bx\s*(?:dm|direct)\b/i,
+  /\bmeet\s*(?:me|telegram|whatsapp)\b/i,
+  /\bsend\s*(?:me|me\s*to)\b/i,
+  /\bcall\s*me\b/i,
+  /\btext\s*me\b/i,
+  /\bphone\b.*\b(?:number|call|text)\b/i,
+  /\b(skype|viber|snapchat|facebook|twitter|x\.com)\b/i,
+];
+
+function classifyFlaggedPattern(pattern: RegExp): string {
+  const src = pattern.source;
+  if (src.includes('gmail') || src.includes('yahoo') || src.includes('hotmail')) return 'Email addresses';
+  if (src.includes('https') || src.includes('www')) return 'External links / URLs';
+  if (src.includes('whatsapp') || src.includes('telegram') || src.includes('discord')) return 'Off-platform contact methods';
+  if (src.includes('pay') && src.includes('direct')) return 'Off-platform payment instructions';
+  if (src.includes('instagram')) return 'Social media links';
+  if (src.includes('tiktok') || src.includes('skype') || src.includes('viber') || src.includes('snapchat') || src.includes('facebook') || src.includes('twitter')) return 'Social media links';
+  if (src.includes('call') || src.includes('text') || src.includes('phone') || src.includes('number')) return 'Phone contact details';
+  if (src.includes('\\d')) return 'Phone numbers or digit patterns';
+  return 'Flagged content';
+}
+
+function validateBio(text: string): { valid: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  for (const pattern of ANTI_SCAM_PATTERNS) {
+    if (pattern.test(text)) {
+      const label = classifyFlaggedPattern(pattern);
+      if (!reasons.includes(label)) {
+        reasons.push(label);
+      }
+    }
+  }
+  return { valid: reasons.length === 0, reasons };
+}
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const userId = user?.uid || "";
@@ -71,6 +124,110 @@ export default function ProfilePage() {
   const [buyerReviews, setBuyerReviews] = useState<Review[]>([]);
   const [averageRating, setAverageRating] = useState(5.0);
   const [loading, setLoading] = useState(true);
+
+  const [bioEditMode, setBioEditMode] = useState(false);
+  const [bioDraft, setBioDraft] = useState("");
+  const [bioError, setBioError] = useState("");
+  const [bioSaving, setBioSaving] = useState(false);
+  const [bioSavedMsg, setBioSuccessMessage] = useState("");
+
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const [avatarSuccess, setAvatarSuccess] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const memberSince = user?.metadata?.creationTime
+    ? new Date(user.metadata.creationTime).toLocaleDateString("en-NG", {
+        year: "numeric",
+        month: "long",
+      })
+    : "N/A";
+
+  const doSaveBio = useCallback(async () => {
+    if (!userId) {
+      setBioError("User not authenticated. Please sign in again.");
+      return;
+    }
+    const validation = validateBio(bioDraft);
+    if (!validation.valid) {
+      setBioError(
+        "Blocked: " + validation.reasons.join(", ") + ". Remove flagged content and try again."
+      );
+      return;
+    }
+    setBioError("");
+    setBioSaving(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        setBioError("Session expired. Please sign in again.");
+        return;
+      }
+
+      const response = await fetch("/api/profile/bio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify({ bio: bioDraft }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setBioError(result.error || "Failed to save bio. Please try again.");
+        return;
+      }
+
+      setBioEditMode(false);
+      setBioDraft("");
+      setBioSuccessMessage("Bio saved successfully.");
+    } catch (err) {
+      console.error("Failed to save bio:", err);
+      setBioError("Failed to save bio. Please try again.");
+    } finally {
+      setBioSaving(false);
+    }
+  }, [bioDraft, userId]);
+
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarError("");
+    setAvatarSuccess("");
+    setAvatarUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/profile/avatar", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + await auth.currentUser?.getIdToken() || "",
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update profile picture.");
+      }
+
+      setAvatarSuccess("Profile picture updated successfully.");
+      setUserData((prev) => (prev ? { ...prev, avatarUrl: result.avatarUrl || prev.avatarUrl } : prev));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to update profile picture.";
+      setAvatarError(msg);
+    } finally {
+      setAvatarUploading(false);
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -168,22 +325,53 @@ export default function ProfilePage() {
     );
   }
 
+  const displayBio = userData?.bio || userData?.storeTagline || "Tell buyers about yourself and your trading experience.";
+  const displayName = userData?.fullName || user?.displayName || "Your Profile";
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-[#0B0E14] text-[#EDEFF2]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-          {/* Profile Header */}
           <section className="bg-[#151922] border border-[#242938] rounded-3xl p-8 md:p-10 shadow-2xl">
             <div className="flex flex-col lg:flex-row items-start gap-8">
-              <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-[#FFB020]/20 to-[#7C5CFC]/20 border-2 border-[#FFB020]/40 text-[#FFB020] font-bold text-4xl flex items-center justify-center shrink-0 shadow-lg">
-                {getInitials(userData?.fullName ?? user?.displayName ?? undefined)}
+              <div className="relative w-28 h-28 shrink-0 group">
+                <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-[#FFB020]/20 to-[#7C5CFC]/20 border-2 border-[#FFB020]/40 text-[#FFB020] font-bold text-4xl flex items-center justify-center shadow-lg overflow-hidden">
+                  {userData?.avatarUrl ? (
+                    <img
+                      src={userData.avatarUrl}
+                      alt={displayName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    getInitials(userData?.fullName ?? user?.displayName ?? undefined)
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarSelect}
+                  className="hidden"
+                  id="avatar-upload"
+                />
+                <label
+                  htmlFor="avatar-upload"
+                  className="absolute -bottom-1 -right-1 w-9 h-9 rounded-xl bg-[#FFB020] text-[#0B0E14] flex items-center justify-center cursor-pointer hover:bg-[#ffa500] transition shadow-lg border border-[#FFB020]/50"
+                  title="Update profile picture"
+                >
+                  {avatarUploading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Camera size={16} />
+                  )}
+                </label>
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-4 mb-4">
                   <h1 className="text-3xl md:text-4xl font-black text-[#EDEFF2]">
-                    {userData?.fullName || user?.displayName || "Your Profile"}
+                    {displayName}
                   </h1>
                   {isVerified ? (
                     <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-base font-bold uppercase tracking-wider">
@@ -201,13 +389,77 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                <p className="text-lg text-[#8A93A3] mb-6 leading-relaxed">
-                  {userData?.bio || userData?.storeTagline || "Tell buyers about yourself and your trading experience."}
-                </p>
+                <div className="mb-6 relative">
+                  {bioEditMode ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={bioDraft}
+                        onChange={(e) => {
+                          setBioDraft(e.target.value);
+                          setBioError("");
+                          setBioSuccessMessage("");
+                        }}
+                        rows={3}
+                        maxLength={500}
+                        className="w-full bg-[#0B0E14] border border-[#242938] rounded-xl p-4 text-[#EDEFF2] text-base resize-none focus:outline-none focus:border-[#FFB020]/50 placeholder:text-[#8A93A3]"
+                        placeholder="Tell buyers about yourself..."
+                      />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {bioError && (
+                            <span className="inline-flex items-center gap-1.5 text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg">
+                              <AlertCircle size={14} />
+                              {bioError}
+                            </span>
+                          )}
+                          {bioSavedMsg && (
+                            <span className="inline-flex items-center gap-1.5 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
+                              <CheckCircle size={14} />
+                              {bioSavedMsg}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-[#8A93A3]">{bioDraft.length}/500</span>
+                          <button
+                            onClick={() => { setBioEditMode(false); setBioDraft(""); setBioError(""); setBioSuccessMessage(""); }}
+                            className="px-3 py-1.5 rounded-lg text-sm text-[#8A93A3] hover:text-[#EDEFF2] hover:bg-[#242938] transition"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={doSaveBio}
+                            disabled={bioSaving || !bioDraft.trim()}
+                            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold bg-[#FFB020] text-[#0B0E14] hover:bg-[#ffa500] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {bioSaving ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Save size={14} />
+                            )}
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-4">
+                      <p className="text-lg text-[#8A93A3] leading-relaxed">
+                        {displayBio}
+                      </p>
+                      <button
+                        onClick={() => { setBioDraft(userData?.bio || userData?.storeTagline || ""); setBioEditMode(true); setBioError(""); setBioSuccessMessage(""); }}
+                        className="shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold text-[#8A93A3] hover:text-[#EDEFF2] hover:bg-[#242938] transition"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex flex-wrap items-center gap-6 text-base text-[#8A93A3]">
                   <span className="flex items-center gap-2">
-                    <Calendar size={18} /> Member since {formatDate(userData?.createdAt)}
+                    <Calendar size={18} /> Member since {memberSince}
                   </span>
                   {userData?.location && (
                     <span className="flex items-center gap-2">
@@ -219,7 +471,19 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* Stats Grid */}
+          {avatarError && (
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 text-rose-400 text-sm flex items-center gap-2">
+              <AlertCircle size={16} />
+              {avatarError}
+            </div>
+          )}
+          {avatarSuccess && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-emerald-400 text-sm flex items-center gap-2">
+              <CheckCircle size={16} />
+              {avatarSuccess}
+            </div>
+          )}
+
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-[#151922] border border-[#242938] rounded-2xl p-6 flex items-center gap-5 hover:border-[#FFB020]/30 transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#FFB020]/10 border border-[#FFB020]/20 flex items-center justify-center text-[#FFB020]">
@@ -231,7 +495,6 @@ export default function ProfilePage() {
                 <div className="text-base text-[#8A93A3] mt-1">{sellerReviews.length} reviews received</div>
               </div>
             </div>
-
             <div className="bg-[#151922] border border-[#242938] rounded-2xl p-6 flex items-center gap-5 hover:border-emerald-500/30 transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                 <TrendingUp size={28} />
@@ -242,7 +505,6 @@ export default function ProfilePage() {
                 <div className="text-base text-[#8A93A3] mt-1">Successful transactions</div>
               </div>
             </div>
-
             <div className="bg-[#151922] border border-[#242938] rounded-2xl p-6 flex items-center gap-5 hover:border-[#7C5CFC]/30 transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#7C5CFC]/10 border border-[#7C5CFC]/20 flex items-center justify-center text-[#7C5CFC]">
                 <Store size={28} />
@@ -253,7 +515,6 @@ export default function ProfilePage() {
                 <div className="text-base text-[#8A93A3] mt-1">Currently for sale</div>
               </div>
             </div>
-
             <div className="bg-[#151922] border border-[#242938] rounded-2xl p-6 flex items-center gap-5 hover:border-amber-500/30 transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
                 <MessageSquare size={28} />
@@ -266,10 +527,8 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* Reviews Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-            {/* Seller Reviews (Received) */}
             <section className="bg-[#151922] border border-[#242938] rounded-2xl p-6 md:p-8">
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-14 h-14 rounded-2xl bg-[#FFB020]/10 border border-[#FFB020]/20 flex items-center justify-center text-[#FFB020]">
@@ -310,7 +569,6 @@ export default function ProfilePage() {
               )}
             </section>
 
-            {/* Buyer Reviews (Given) */}
             <section className="bg-[#151922] border border-[#242938] rounded-2xl p-6 md:p-8">
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-14 h-14 rounded-2xl bg-[#7C5CFC]/10 border border-[#7C5CFC]/20 flex items-center justify-center text-[#7C5CFC]">
@@ -351,6 +609,7 @@ export default function ProfilePage() {
               )}
             </section>
           </div>
+
         </div>
       </div>
     </AuthGuard>
