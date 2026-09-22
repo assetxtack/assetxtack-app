@@ -56,6 +56,7 @@ export async function PATCH(request: Request) {
       returnedCredentials,
       returnedCredentialsAt,
       isTimerFrozen,
+      tamperingReport,
     } = body;
 
     if (!orderId || !status) {
@@ -83,6 +84,15 @@ export async function PATCH(request: Request) {
     const buyerId = String(orderData.buyerId || "");
     const sellerId = String(orderData.sellerId || "");
     const listingTitle = String(orderData.title || "Unknown listing");
+
+    const hasAlreadyReturned = Boolean(orderData.returnedCredentials) || Boolean(orderData.returnedCredentialsAt);
+    if (status === "RETURNED_CREDENTIALS" && tamperingReport !== true && hasAlreadyReturned) {
+      console.warn(`[orders PATCH] Duplicate credential return blocked for order ${String(orderId).slice(0, 8)}`);
+      return NextResponse.json(
+        { error: "Credentials have already been returned for this order", code: "ALREADY_RETURNED" },
+        { status: 409 }
+      );
+    }
 
     const updateData: Record<string, unknown> = { status };
     if (isTimerFrozen !== undefined) {
@@ -120,6 +130,19 @@ export async function PATCH(request: Request) {
     }
 
     const now = new Date();
+
+    if (tamperingReport) {
+      updateData.isTimerFrozen = true;
+      updateData.tamperingReported = true;
+      updateData.tamperingReportedAt = now;
+      updateData.disputedAt = now;
+      updateData.disputeRaisedAt = now;
+      updateData.disputeReason = disputeReason || "TAMPERING_REPORT";
+      if (disputeDetails) {
+        updateData.disputeDetails = disputeDetails;
+      }
+    }
+
     await orderRef.update(updateData);
 
     if (status === "COMPLETED" && sellerId) {
@@ -234,7 +257,7 @@ export async function PATCH(request: Request) {
       }
     }
 
-    if (status === "RETURNED_CREDENTIALS") {
+    if (status === "RETURNED_CREDENTIALS" && !tamperingReport) {
       console.log(`[orders PATCH] Credentials returned for order ${orderId?.slice(0, 8)}, sending notifications and system chat message`);
 
       const systemChatPayload: Record<string, unknown> = {
