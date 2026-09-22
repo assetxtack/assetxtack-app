@@ -191,9 +191,22 @@ export default function OrderDashboardPage() {
     return { key: key.trim(), value };
   };
 
-  const credentialFields = credentials
-    ? credentials.split("\n").map(parseCredentialLine).filter(Boolean) as { key: string; value: string }[]
-    : [];
+  const credentialFields: { key: string; value: string }[] = (() => {
+    try {
+      if (!credentials) return [];
+      if (typeof credentials === "string") {
+        return credentials.split("\n").map(parseCredentialLine).filter(Boolean) as { key: string; value: string }[];
+      }
+      if (typeof credentials === "object" && !Array.isArray(credentials) && credentials !== null) {
+        return Object.entries(credentials as Record<string, unknown>)
+          .map(([key, value]) => ({ key, value: String(value ?? "") }))
+          .filter((entry) => entry.key && entry.value);
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  })();
 
   const copyToClipboard = async (text: string, fieldKey: string) => {
     try {

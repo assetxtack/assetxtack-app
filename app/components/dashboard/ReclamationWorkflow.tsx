@@ -44,7 +44,7 @@ function parseCredentialLine(line: string) {
 }
 
 interface CredentialFieldCardProps {
-  credentials: string | undefined;
+  credentials: string | Record<string, unknown> | undefined | null;
   title: string;
   icon: React.ReactNode;
   isSellerView?: boolean;
@@ -60,9 +60,18 @@ function CredentialFieldCard({
   onCopyCredential,
   copiedField,
 }: CredentialFieldCardProps) {
-  const fields = credentials
-    ? credentials.split("\n").map(parseCredentialLine).filter(Boolean) as { key: string; value: string }[]
-    : [];
+  const fields: { key: string; value: string }[] = (() => {
+    if (!credentials) return [];
+    if (typeof credentials === "string") {
+      return credentials.split("\n").map(parseCredentialLine).filter(Boolean) as { key: string; value: string }[];
+    }
+    if (typeof credentials === "object") {
+      return Object.entries(credentials as Record<string, unknown>)
+        .map(([key, value]) => ({ key, value: String(value ?? "") }))
+        .filter((entry) => entry.key && entry.value);
+    }
+    return [];
+  })();
 
   return (
     <section className="p-5 bg-[#151922] border border-[#242938] rounded-2xl space-y-4 shadow-xl">
