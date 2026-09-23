@@ -3,9 +3,10 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 import { sendNotification } from "@/lib/notifications";
 import { recordWalletTransaction } from "@/lib/wallet";
 import { sendDisputeEmail } from "@/lib/email/sendDisputeEmail";
-import { sendOrderCompletedEmail } from "@/lib/email/sendOrderCompletedEmail";
-import { sendCredentialsReturnedEmail } from "@/lib/email/sendCredentialsReturnedEmail";
-import { calculateFeeBreakdown } from "@/lib/fees";
+    import { sendOrderCompletedEmail } from "@/lib/email/sendOrderCompletedEmail";
+    import { sendCredentialsReturnedEmail } from "@/lib/email/sendCredentialsReturnedEmail";
+    import { sendTamperingReportEmail } from "@/lib/email/sendTamperingReportEmail";
+    import { calculateFeeBreakdown } from "@/lib/fees";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ export async function PATCH(request: Request) {
       returnedCredentials,
       returnedCredentialsAt,
       isTimerFrozen,
+      tamperingReport,
     } = body;
 
     if (!orderId || !status) {
@@ -83,6 +85,15 @@ export async function PATCH(request: Request) {
     const buyerId = String(orderData.buyerId || "");
     const sellerId = String(orderData.sellerId || "");
     const listingTitle = String(orderData.title || "Unknown listing");
+
+    const hasAlreadyReturned = Boolean(orderData.returnedCredentials) || Boolean(orderData.returnedCredentialsAt);
+    if (status === "RETURNED_CREDENTIALS" && tamperingReport !== true && hasAlreadyReturned) {
+      console.warn(`[orders PATCH] Duplicate credential return blocked for order ${String(orderId).slice(0, 8)}`);
+      return NextResponse.json(
+        { error: "Credentials have already been returned for this order", code: "ALREADY_RETURNED" },
+        { status: 409 }
+      );
+    }
 
     const updateData: Record<string, unknown> = { status };
     if (isTimerFrozen !== undefined) {
@@ -120,7 +131,66 @@ export async function PATCH(request: Request) {
     }
 
     const now = new Date();
+
+    if (tamperingReport) {
+      updateData.isTimerFrozen = true;
+      updateData.tamperingReported = true;
+      updateData.tamperingReportedAt = now;
+      updateData.disputedAt = now;
+      updateData.disputeRaisedAt = now;
+      updateData.disputeReason = disputeReason || "TAMPERING_REPORT";
+      if (disputeDetails) {
+        updateData.disputeDetails = disputeDetails;
+      }
+    }
+
     await orderRef.update(updateData);
+
+    if (tamperingReport) {
+      if (buyerId) {
+        await sendNotification({
+          userId: buyerId,
+          orderId,
+          title: "Order Flagged for Dispute",
+          message: "The seller has reported potential tampering. The escrow timer has been frozen and funds are locked in the vault pending review.",
+          type: "TAMPERING_REPORT",
+        });
+      }
+      if (sellerId) {
+        await sendNotification({
+          userId: sellerId,
+          orderId,
+          title: "Tamper Report Registered",
+          message: "Your tamper report has been registered and funds are safely locked in the vault pending review.",
+          type: "TAMPERING_REPORT",
+        });
+      }
+
+      if (buyerId) {
+        try {
+          await sendTamperingReportEmail({
+            userId: buyerId,
+            orderId,
+            listingTitle,
+            recipientRole: "buyer",
+          });
+        } catch (emailErr) {
+          console.error("[orders PATCH] Failed to send tampering report email to buyer:", emailErr);
+        }
+      }
+      if (sellerId) {
+        try {
+          await sendTamperingReportEmail({
+            userId: sellerId,
+            orderId,
+            listingTitle,
+            recipientRole: "seller",
+          });
+        } catch (emailErr) {
+          console.error("[orders PATCH] Failed to send tampering report email to seller:", emailErr);
+        }
+      }
+    }
 
     if (status === "COMPLETED" && sellerId) {
       const orderAmount = Number(orderData.amount || 0);
@@ -234,7 +304,7 @@ export async function PATCH(request: Request) {
       }
     }
 
-    if (status === "RETURNED_CREDENTIALS") {
+    if (status === "RETURNED_CREDENTIALS" && !tamperingReport) {
       console.log(`[orders PATCH] Credentials returned for order ${orderId?.slice(0, 8)}, sending notifications and system chat message`);
 
       const systemChatPayload: Record<string, unknown> = {

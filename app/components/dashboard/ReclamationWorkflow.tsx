@@ -26,11 +26,14 @@ interface ReclamationWorkflowProps {
     timerFrozenAt?: string | Date | null;
     timerFrozenRemainingMs?: number | null;
     disputeResolution?: string | null;
+    tamperingReported?: boolean;
+    tamperingReportedAt?: string | Date | null;
     credentials?: string;
   } | null;
   isBuyer: boolean;
   isSeller: boolean;
   onAccountSecured: (checklist: { assetIntegrity: boolean; credentialSecurity: boolean; noUnauthorizedBinding: boolean }) => void;
+  onReportTampering?: () => void;
   isProcessing: boolean;
   onExpire?: () => Promise<void> | void;
 }
@@ -44,7 +47,7 @@ function parseCredentialLine(line: string) {
 }
 
 interface CredentialFieldCardProps {
-  credentials: string | undefined;
+  credentials: string | Record<string, unknown> | undefined | null;
   title: string;
   icon: React.ReactNode;
   isSellerView?: boolean;
@@ -60,9 +63,18 @@ function CredentialFieldCard({
   onCopyCredential,
   copiedField,
 }: CredentialFieldCardProps) {
-  const fields = credentials
-    ? credentials.split("\n").map(parseCredentialLine).filter(Boolean) as { key: string; value: string }[]
-    : [];
+  const fields: { key: string; value: string }[] = (() => {
+    if (!credentials) return [];
+    if (typeof credentials === "string") {
+      return credentials.split("\n").map(parseCredentialLine).filter(Boolean) as { key: string; value: string }[];
+    }
+    if (typeof credentials === "object") {
+      return Object.entries(credentials as Record<string, unknown>)
+        .map(([key, value]) => ({ key, value: String(value ?? "") }))
+        .filter((entry) => entry.key && entry.value);
+    }
+    return [];
+  })();
 
   return (
     <section className="p-5 bg-[#151922] border border-[#242938] rounded-2xl space-y-4 shadow-xl">
@@ -149,6 +161,7 @@ export default function ReclamationWorkflow({
   isBuyer,
   isSeller,
   onAccountSecured,
+  onReportTampering,
   isProcessing,
   onExpire,
 }: ReclamationWorkflowProps) {
@@ -158,6 +171,7 @@ export default function ReclamationWorkflow({
     noUnauthorizedBinding: false,
   });
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showChecklist, setShowChecklist] = useState(false);
 
   if (!order) return null;
 
@@ -165,6 +179,7 @@ export default function ReclamationWorkflow({
   const isReturnedCreds = order.status === "RETURNED_CREDENTIALS";
   const isTimerFrozen = Boolean(order.isTimerFrozen);
   const hasAccountBeenSecured = Boolean(order.accountSecuredAt);
+  const tamperingReported = Boolean(order.tamperingReported);
 
   const isSellerViewOfReturned = isSeller && isReturnedCreds && Boolean(order.returnedCredentials);
 
@@ -277,7 +292,7 @@ export default function ReclamationWorkflow({
           <p className="text-xs text-[#8A93A3] leading-relaxed">
             You have 24 hours to verify that the returned account is secure. Before
             confirming, review the returned credentials above and complete the 3-point
-            safety checklist below.
+            safety checklist.
           </p>
 
           <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-300 flex items-start gap-2">
@@ -289,30 +304,74 @@ export default function ReclamationWorkflow({
             </span>
           </div>
 
-          <div>
-            <p className="text-xs font-bold text-[#EDEFF2] uppercase tracking-wider mb-2">
-              3-Point Safety Checklist
-            </p>
-            <SafetyChecklist
-              onChecklistChange={setChecklist}
-              isValid={checklist.assetIntegrity && checklist.credentialSecurity && checklist.noUnauthorizedBinding}
-            />
-          </div>
+          {tamperingReported ? (
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs text-blue-300 flex items-start gap-2">
+              <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+              <span>
+                Tampering reported. The escrow timer has been frozen and funds are locked
+                in the vault pending review. An AssetXtack mediator will investigate.
+              </span>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <button
+                onClick={() => onReportTampering && onReportTampering()}
+                disabled={isProcessing || isTimerFrozen}
+                className="w-full py-2.5 rounded-xl bg-rose-500/10 text-rose-300 border border-rose-500/30 text-xs font-semibold hover:bg-rose-500/20 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <AlertTriangle size={14} />
+                Report Tampering / Dispute
+              </button>
 
-          <button
-            onClick={handleVerifySubmit}
-            disabled={
-              isProcessing ||
-              isTimerFrozen ||
-              !checklist.assetIntegrity ||
-              !checklist.credentialSecurity ||
-              !checklist.noUnauthorizedBinding
-            }
-            className="w-full py-2.5 rounded-xl bg-amber-500 text-[#0B0E14] font-bold text-xs hover:bg-amber-400 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-          >
-            {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-            Confirm Account Secured &amp; Authorize Buyer Refund
-          </button>
+              {!showChecklist ? (
+                <button
+                  onClick={() => setShowChecklist(true)}
+                  disabled={isProcessing || isTimerFrozen}
+                  className="w-full py-2.5 rounded-xl bg-amber-500 text-[#0B0E14] font-bold text-xs hover:bg-amber-400 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <CheckCircle size={14} />
+                  Confirm Account Secured
+                </button>
+              ) : (
+                <div className="bg-[#0B0E14] border border-[#242938] rounded-xl p-4 space-y-4">
+                  <div className="flex items-center gap-2 text-[#FFB020]">
+                    <Shield size={14} />
+                    <span className="text-[10px] uppercase font-extrabold tracking-wider">3-Point Safety Checklist</span>
+                  </div>
+
+                  <SafetyChecklist
+                    onChecklistChange={setChecklist}
+                    isValid={checklist.assetIntegrity && checklist.credentialSecurity && checklist.noUnauthorizedBinding}
+                  />
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowChecklist(false)}
+                      disabled={isProcessing}
+                      className="flex-1 py-2.5 rounded-xl border border-[#242938] text-xs font-medium text-[#8A93A3] hover:bg-zinc-800 transition disabled:opacity-50"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleVerifySubmit}
+                      disabled={
+                        isProcessing ||
+                        isTimerFrozen ||
+                        !checklist.assetIntegrity ||
+                        !checklist.credentialSecurity ||
+                        !checklist.noUnauthorizedBinding
+                      }
+                      className="flex-1 py-2.5 rounded-xl bg-amber-500 text-[#0B0E14] font-bold text-xs hover:bg-amber-400 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                      Confirm Account Secured &amp; Authorize Buyer Refund
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

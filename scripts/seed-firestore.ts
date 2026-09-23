@@ -128,8 +128,18 @@ const SEEDABLE_COLLECTIONS = [
     data: (uid: string) => ({
       _seed: true,
       collection: "withdrawalRequests",
+      userId: uid,
       sellerId: uid,
+      amount: 10000,
+      bankAccount: {
+        bankName: "Guaranty Trust Bank",
+        accountNumber: "0123456789",
+        accountName: "Seed Test User",
+      },
+      status: "pending",
+      reason: "Wallet withdrawal",
       createdAt: new Date(),
+      updatedAt: new Date(),
     }),
   },
   {

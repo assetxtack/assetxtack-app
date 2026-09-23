@@ -41,6 +41,8 @@ type Order = {
   sellerVerificationDeadline?: string | Date | null;
   isTimerFrozen?: boolean;
   disputeResolution?: string | null;
+  tamperingReported?: boolean;
+  tamperingReportedAt?: string | Date | null;
   isChatLocked?: boolean;
 };
 
@@ -191,9 +193,22 @@ export default function OrderDashboardPage() {
     return { key: key.trim(), value };
   };
 
-  const credentialFields = credentials
-    ? credentials.split("\n").map(parseCredentialLine).filter(Boolean) as { key: string; value: string }[]
-    : [];
+  const credentialFields: { key: string; value: string }[] = (() => {
+    try {
+      if (!credentials) return [];
+      if (typeof credentials === "string") {
+        return credentials.split("\n").map(parseCredentialLine).filter(Boolean) as { key: string; value: string }[];
+      }
+      if (typeof credentials === "object" && !Array.isArray(credentials) && credentials !== null) {
+        return Object.entries(credentials as Record<string, unknown>)
+          .map(([key, value]) => ({ key, value: String(value ?? "") }))
+          .filter((entry) => entry.key && entry.value);
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  })();
 
   const copyToClipboard = async (text: string, fieldKey: string) => {
     try {
@@ -348,6 +363,45 @@ export default function OrderDashboardPage() {
     }
   };
 
+  const reportTampering = async () => {
+    if (!order?.id) return;
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderId || "")}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          status: "RETURNED_CREDENTIALS",
+          isTimerFrozen: true,
+          tamperingReport: true,
+          initiatorId: currentUserId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to report tampering");
+      }
+
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          senderId: "SYSTEM",
+          senderName: "System Guard",
+          text: "Seller reported potential tampering on the returned credentials. The escrow timer has been frozen and funds are locked in the vault pending review.",
+          isSystemMessage: true,
+        }),
+      });
+    } catch (error) {
+      console.error("Unable to report tampering:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleTimerExpire = async () => {
     if (!order?.id) return;
     const isDisputed = order.status === "DISPUTED";
@@ -380,6 +434,7 @@ export default function OrderDashboardPage() {
 
   const isDisputed = order?.status === "DISPUTED" || order?.status === "RETURNED_CREDENTIALS";
   const hasCredentials = credentialFields.length > 0;
+  const hasReturnedCredentials = Boolean(order?.returnedCredentials) || Boolean(order?.returnedCredentialsAt);
 
   // Prevent layout shifts during SSR hydration phase
   if (!isMounted) {
@@ -446,7 +501,8 @@ export default function OrderDashboardPage() {
                     <Star size={14} /> Leave a Review
                   </button>
                 )}
-                {isDisputed && isBuyer && <button onClick={() => setShowReturnCredentialsModal(true)} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs font-semibold disabled:opacity-50">Return Credentials to Seller</button>}
+                {isBuyer && order?.status === "DISPUTED" && !hasReturnedCredentials && <button onClick={() => setShowReturnCredentialsModal(true)} disabled={isProcessing} className="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs font-semibold disabled:opacity-50">Return Credentials to Seller</button>}
+                {isBuyer && hasReturnedCredentials && <span className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold flex items-center gap-1.5"><KeyRound size={16} /> Credentials already returned</span>}
                 {isDisputed && isBuyer && <span className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-1.5"><ShieldAlert size={16} /> Dispute in progress</span>}
                 {isDisputed && order?.isTimerFrozen && !order?.accountSecuredAt && <span className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-1.5"><ShieldAlert size={16} /> Escrow frozen</span>}
                 {order?.status === "CANCELLED" && <span className="px-4 py-2 rounded-xl bg-slate-500/10 border border-slate-500/20 text-slate-400 text-xs font-semibold flex items-center gap-1.5"><ShieldAlert size={16} /> Cancelled &amp; Refunded</span>}
@@ -516,14 +572,17 @@ export default function OrderDashboardPage() {
                       returnedCredentialsAt: order?.returnedCredentialsAt || null,
                       sellerVerificationDeadline: order?.sellerVerificationDeadline || null,
                       accountSecuredAt: order?.accountSecuredAt || null,
-                      isTimerFrozen: order?.isTimerFrozen || false,
-                      disputeResolution: order?.disputeResolution || null,
-                      credentials: order?.credentials,
-                    }}
-                    isBuyer={isBuyer}
-                    isSeller={isSeller}
-                    onAccountSecured={handleAccountSecured}
-                    isProcessing={isProcessing}
+                       isTimerFrozen: order?.isTimerFrozen || false,
+                       disputeResolution: order?.disputeResolution || null,
+                       credentials: order?.credentials,
+                       tamperingReported: order?.tamperingReported || false,
+                       tamperingReportedAt: order?.tamperingReportedAt || null,
+                     }}
+                     isBuyer={isBuyer}
+                     isSeller={isSeller}
+                     onAccountSecured={handleAccountSecured}
+                     onReportTampering={reportTampering}
+                     isProcessing={isProcessing}
                     onExpire={handleTimerExpire}
                   />
                 )}
