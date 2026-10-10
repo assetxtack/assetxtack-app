@@ -59,6 +59,12 @@ export async function GET(request: Request) {
       bankAccount?: { bankName?: string; accountNumber?: string; accountName?: string };
       verificationProvider?: string;
       createdAt?: string | Date;
+      status?: string;
+      banCategory?: string;
+      banReason?: string;
+      bannedAt?: string | Date;
+      bannedBy?: string;
+      walletStatus?: { isFrozen: boolean };
     }> = [];
 
     for (const doc of usersSnapshot.docs) {
@@ -78,6 +84,14 @@ export async function GET(request: Request) {
         bankAccount: data.bankAccount,
         verificationProvider: data.verificationProvider,
         createdAt: data.createdAt,
+        status: data.status || "active",
+        banCategory: data.banCategory,
+        banReason: data.banReason,
+        bannedAt: data.bannedAt?.toDate?.()?.toISOString?.() || data.bannedAt,
+        bannedBy: data.bannedBy,
+        walletStatus: {
+          isFrozen: data.walletStatus === "frozen" || data.walletStatus?.isFrozen === true,
+        },
       });
     }
 

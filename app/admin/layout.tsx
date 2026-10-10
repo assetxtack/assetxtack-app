@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   X,
   Loader2,
+  FileText,
 } from "lucide-react";
 
 interface AdminNavItem {
@@ -36,6 +37,7 @@ const ADMIN_NAV: AdminNavItem[] = [
   { name: "Support Tickets", href: "/admin/support-tickets", icon: Ticket },
   { name: "Wallet Transactions", href: "/admin/wallet-transactions", icon: CreditCard },
   { name: "Withdrawal Requests", href: "/admin/withdrawal-requests", icon: Wallet },
+  { name: "Appeals", href: "/admin/appeals", icon: FileText },
 ];
 
 export default function AdminLayout({

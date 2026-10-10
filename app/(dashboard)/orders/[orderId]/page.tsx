@@ -164,18 +164,26 @@ export default function OrderDashboardPage() {
   }, [orderId, isBuyer, order?.status]);
 
   const handleReviewSubmit = async (rating: number, comment: string) => {
-    if (!order?.id || !order?.sellerId || !currentUserId) return;
+    if (!order?.id) {
+      throw new Error("Order data is not loaded yet. Please refresh the page and try again.");
+    }
+    if (!order?.sellerId) {
+      throw new Error("Seller information is missing for this order.");
+    }
+    if (!currentUserId) {
+      throw new Error("You must be logged in to submit a review.");
+    }
 
     const res = await fetch("/api/reviews", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orderId: order.id,
-        listingId: order.listingId || order.id,
         sellerId: order.sellerId,
         buyerId: currentUserId,
         rating,
-        comment,
+        comment: comment || "",
+        listingId: order.listingId || order.id,
       }),
     });
 
@@ -183,6 +191,8 @@ export default function OrderDashboardPage() {
     if (!res.ok || !data.success) {
       throw new Error(data.error || "Failed to submit review");
     }
+
+    return data;
   };
 
   const parseCredentialLine = (line: string) => {

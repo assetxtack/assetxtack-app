@@ -8,9 +8,10 @@ export interface UserProfile {
   displayName: string;
   photoURL: string;
   role: "user";
+  status: "active";
   isVerified: boolean;
   kycStatus: "unverified";
-  createdAt: Date;
+  createdAt: string;
 }
 
 export async function syncUserToFirestore(firebaseUser: User): Promise<UserProfile> {
@@ -25,13 +26,14 @@ export async function syncUserToFirestore(firebaseUser: User): Promise<UserProfi
     return snapshot.data() as UserProfile;
   }
 
-  const now = new Date();
+  const now = new Date().toISOString();
   const profile: UserProfile = {
     uid: firebaseUser.uid,
     email: firebaseUser.email || "",
-    displayName: firebaseUser.displayName || "",
+    displayName: firebaseUser.displayName || "New User",
     photoURL: firebaseUser.photoURL || "",
     role: "user",
+    status: "active",
     isVerified: false,
     kycStatus: "unverified",
     createdAt: now,

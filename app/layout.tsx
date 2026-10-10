@@ -1,25 +1,36 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { AuthProvider } from "./context/AuthContext";
 import AppShell from "./components/AppShell";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const spaceGrotesk = localFont({
+  src: [
+    { path: "../public/fonts/SpaceGrotesk-Medium.ttf", weight: "500" },
+    { path: "../public/fonts/SpaceGrotesk-SemiBold.ttf", weight: "600" },
+    { path: "../public/fonts/SpaceGrotesk-Bold.ttf", weight: "700" },
+  ],
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  display: "swap",
 });
 
-const inter = Inter({
+const inter = localFont({
+  src: [
+    { path: "../public/fonts/Inter-Regular.ttf", weight: "400" },
+    { path: "../public/fonts/Inter-Medium.ttf", weight: "500" },
+    { path: "../public/fonts/Inter-SemiBold.ttf", weight: "600" },
+  ],
   variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const jetbrainsMono = localFont({
+  src: [
+    { path: "../public/fonts/JetBrainsMono-Regular.ttf", weight: "400" },
+    { path: "../public/fonts/JetBrainsMono-Medium.ttf", weight: "500" },
+  ],
   variable: "--font-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {

@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
-import { 
+import {
   sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 export default function SignInPage() {
@@ -22,6 +22,20 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const redirectDisabledUser = async (email?: string | null) => {
+    if (!email) {
+      router.push("/suspended");
+      return;
+    }
+    try {
+      const response = await fetch(`/api/user/ban-status?email=${encodeURIComponent(email)}`);
+      const data = response.ok ? await response.json() : null;
+      router.push(data?.uid ? `/suspended?uid=${encodeURIComponent(data.uid)}` : "/suspended");
+    } catch {
+      router.push("/suspended");
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -38,12 +52,22 @@ export default function SignInPage() {
           // Ensure Google redirect sign-ins also sync user data to Firestore
           const googleUser = result.user;
           const userRef = doc(db, "users", googleUser.uid);
+          const userSnap = await getDoc(userRef);
+
+          if (!userSnap.exists()) {
+            setError("No account found with this Google account. Please sign up first.");
+            await auth.signOut();
+            return;
+          }
+
           await setDoc(userRef, {
             uid: googleUser.uid,
             email: googleUser.email || "",
-            displayName: googleUser.displayName || "User",
+            displayName: googleUser.displayName || "New User",
             photoURL: googleUser.photoURL || "",
             phoneNumber: googleUser.phoneNumber || "",
+            role: "user",
+            status: "active",
             createdAt: new Date().toISOString(),
           }, { merge: true });
 
@@ -52,6 +76,13 @@ export default function SignInPage() {
       })
       .catch((err) => {
         const error = err as { message?: string; code?: string };
+
+        // Check for disabled/banned user - get uid from auth.currentUser if available
+        if (error.code === "auth/user-disabled") {
+          void redirectDisabledUser((error as any).customData?.email || email.trim());
+          return;
+        }
+
         const isNetworkError =
           error?.message?.includes("network") ||
           error?.message?.includes("fetch") ||
@@ -91,6 +122,13 @@ export default function SignInPage() {
       setSuccess("Login successful! Redirecting...");
     } catch (err) {
       const error = err as { code?: string; message?: string };
+
+      // Check for disabled/banned user
+      if (error.code === "auth/user-disabled") {
+        void redirectDisabledUser((error as any).customData?.email || cleanEmail);
+        return;
+      }
+
       const friendlyError =
         error.code === "auth/invalid-credential" || error.code === "auth/user-not-found"
           ? "Invalid email or password."
@@ -116,15 +154,15 @@ export default function SignInPage() {
 
     const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+    let result;
     try {
-      let result;
       if (isMobile) {
         try {
           result = await signInWithPopup(auth, provider);
         } catch (popupErr) {
           const error = popupErr as { code?: string };
           if (
-            error.code === "auth/popup-blocked" || 
+            error.code === "auth/popup-blocked" ||
             error.code === "auth/operation-not-supported-in-this-environment"
           ) {
             await signInWithRedirect(auth, provider);
@@ -140,12 +178,22 @@ export default function SignInPage() {
       if (result?.user) {
         const googleUser = result.user;
         const userRef = doc(db, "users", googleUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
+          setError("No account found with this Google account. Please sign up first.");
+          await auth.signOut();
+          return;
+        }
+
         await setDoc(userRef, {
           uid: googleUser.uid,
           email: googleUser.email || "",
-          displayName: googleUser.displayName || "User",
+          displayName: googleUser.displayName || "New User",
           photoURL: googleUser.photoURL || "",
           phoneNumber: googleUser.phoneNumber || "",
+          role: "user",
+          status: "active",
           createdAt: new Date().toISOString(),
         }, { merge: true });
       }
@@ -153,6 +201,13 @@ export default function SignInPage() {
       setSuccess("Login successful! Redirecting...");
     } catch (err) {
       const error = err as { message?: string; code?: string };
+
+      // Check for disabled/banned user
+      if (error.code === "auth/user-disabled") {
+        void redirectDisabledUser((error as any).customData?.email || email.trim());
+        return;
+      }
+
       const isNetworkError =
         error?.message?.includes("network") ||
         error?.message?.includes("fetch") ||

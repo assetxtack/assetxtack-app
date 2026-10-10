@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, orderId, subject, message, category, proofUrls } = body;
+    const { userId, orderId, subject, message, category, proofUrls, isAppeal, bannedUserEmail, bannedUserName, originalBanUid } = body;
 
     if (!userId || !subject || !message || !category) {
       return NextResponse.json(
@@ -40,11 +40,15 @@ export async function POST(request: Request) {
 
     const ticket = await createSupportTicket({
       userId,
-      orderId,
+      orderId: orderId || null,
       subject,
       message,
       category,
       proofUrls: proofUrls || [],
+      ...(isAppeal ? { isAppeal: true } : {}),
+      ...(bannedUserEmail ? { bannedUserEmail } : {}),
+      ...(bannedUserName ? { bannedUserName } : {}),
+      ...(originalBanUid ? { originalBanUid } : {}),
     });
 
     return NextResponse.json({
