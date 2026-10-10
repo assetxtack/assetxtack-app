@@ -185,7 +185,7 @@ export default function Navbar() {
             </div>
 
             <button
-              className="md:hidden p-2 text-[#EDEFF2] hover:text-white rounded-xl border border-[#242938] bg-[#151922]"
+              className="md:hidden p-2 text-[#EDEFF2] hover:text-white rounded-xl border border-[#242938] bg-[#151922] relative z-50 touch-target"
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Toggle menu"
             >
@@ -196,7 +196,7 @@ export default function Navbar() {
       </div>
 
       {!user && menuOpen && (
-        <div className="md:hidden px-6 pb-6 pt-3 flex flex-col gap-2.5 border-t border-[#242938] bg-[#0B0E14]">
+        <div className="md:hidden px-6 pb-6 pt-3 flex flex-col gap-2.5 border-t border-[#242938] bg-[#0B0E14] z-40 shadow-2xl relative">
           {PUBLIC_NAV_LINKS.map((link) => (
             <Link
               key={link.href}

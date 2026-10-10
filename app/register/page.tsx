@@ -11,10 +11,13 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  getAdditionalUserInfo,
   User,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { syncUserToFirestore } from "@/lib/authSync";
+import { Eye, EyeOff } from "lucide-react";
 
 const GOOGLE_SIGNUP_REDIRECT_KEY = "assetxtack_google_signup_redirect";
 
@@ -26,16 +29,19 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const registrationFlowRef = useRef(false);
   const [checkingGoogleRedirect, setCheckingGoogleRedirect] = useState(true);
 
-  const finishGoogleSignUp = async (googleUser: User) => {
+  const finishGoogleSignUp = async (googleUser: User, isNewGoogleUser: boolean) => {
+    await syncUserToFirestore(googleUser);
     const userRef = doc(db, "users", googleUser.uid);
     const userSnap = await getDoc(userRef);
 
-    if (userSnap.exists()) {
+    if (userSnap.exists() && !isNewGoogleUser) {
       await auth.signOut();
       setError("An account with this Google account already exists. Please sign in instead.");
       return false;
@@ -47,7 +53,6 @@ export default function RegisterPage() {
       displayName: googleUser.displayName || "New User",
       photoURL: googleUser.photoURL || "",
       phoneNumber: googleUser.phoneNumber || "",
-      role: "user",
       status: "active",
       createdAt: new Date().toISOString(),
     }, { merge: true });
@@ -72,7 +77,12 @@ export default function RegisterPage() {
     registrationFlowRef.current = true;
     getRedirectResult(auth)
       .then(async (result) => {
-        if (result?.user) await finishGoogleSignUp(result.user);
+        if (result?.user) {
+          await finishGoogleSignUp(
+            result.user,
+            getAdditionalUserInfo(result)?.isNewUser === true
+          );
+        }
         else if (auth.currentUser) {
           await auth.signOut();
           setError("Google sign-up was interrupted. Please try again.");
@@ -152,6 +162,7 @@ export default function RegisterPage() {
         phoneNumber: cleanPhone,
         role: "user",
         status: "active",
+        isVerified: false,
         createdAt: now,
       }, { merge: true });
 
@@ -186,17 +197,44 @@ export default function RegisterPage() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
 
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const isMobile =
+        typeof window !== "undefined" &&
+        /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isIOS =
+        typeof window !== "undefined" &&
+        (/iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
+      let result;
       if (isIOS) {
         window.sessionStorage.setItem(GOOGLE_SIGNUP_REDIRECT_KEY, "true");
         await signInWithRedirect(auth, provider);
         return;
+      } else if (isMobile) {
+        try {
+          result = await signInWithPopup(auth, provider);
+        } catch (popupErr) {
+          const error = popupErr as { code?: string };
+          if (
+            error.code === "auth/popup-blocked" ||
+            error.code === "auth/operation-not-supported-in-this-environment"
+          ) {
+            window.sessionStorage.setItem(GOOGLE_SIGNUP_REDIRECT_KEY, "true");
+            await signInWithRedirect(auth, provider);
+            return;
+          } else {
+            throw popupErr;
+          }
+        }
+      } else {
+        result = await signInWithPopup(auth, provider);
       }
 
-      const result = await signInWithPopup(auth, provider);
       if (!result?.user) return;
-      await finishGoogleSignUp(result.user);
+      await finishGoogleSignUp(
+        result.user,
+        getAdditionalUserInfo(result)?.isNewUser === true
+      );
     } catch (err) {
       const error = err as { code?: string; message?: string };
       if (auth.currentUser) await auth.signOut();
@@ -310,28 +348,50 @@ export default function RegisterPage() {
             <label className="mb-1.5 block text-xs font-semibold text-slate-300">
               Password <span className="text-red-400">*</span>
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-lg bg-[#0b101b] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-lg bg-[#0b101b] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition pr-12"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-200 transition-colors touch-target"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-slate-300">
               Confirm Password <span className="text-red-400">*</span>
             </label>
-            <input
-              type="password"
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-lg bg-[#0b101b] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-lg bg-[#0b101b] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition pr-12"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-200 transition-colors touch-target"
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <button

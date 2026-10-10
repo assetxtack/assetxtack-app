@@ -10,7 +10,6 @@ export interface UserProfile {
   role: "user";
   status: "active";
   isVerified: boolean;
-  kycStatus: "unverified";
   createdAt: string;
 }
 
@@ -35,7 +34,6 @@ export async function syncUserToFirestore(firebaseUser: User): Promise<UserProfi
     role: "user",
     status: "active",
     isVerified: false,
-    kycStatus: "unverified",
     createdAt: now,
   };
 

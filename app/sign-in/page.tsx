@@ -9,16 +9,20 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult
+  getRedirectResult,
+  getAdditionalUserInfo,
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { syncUserToFirestore } from "@/lib/authSync";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function SignInPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -53,6 +57,12 @@ export default function SignInPage() {
         if (result?.user) {
           googleFlowRef.current = true;
           const googleUser = result.user;
+          if (getAdditionalUserInfo(result)?.isNewUser) {
+            setError("No account found with this Google account. Please sign up first.");
+            await auth.signOut();
+            return;
+          }
+          await syncUserToFirestore(googleUser);
           const userRef = doc(db, "users", googleUser.uid);
           const userSnap = await getDoc(userRef);
 
@@ -182,6 +192,13 @@ export default function SignInPage() {
 
       if (result?.user) {
         const googleUser = result.user;
+        if (getAdditionalUserInfo(result)?.isNewUser) {
+          setError("No account found with this Google account. Please sign up first.");
+          await auth.signOut();
+          googleFlowRef.current = false;
+          return;
+        }
+        await syncUserToFirestore(googleUser);
         const userRef = doc(db, "users", googleUser.uid);
         const userSnap = await getDoc(userRef);
 
@@ -331,14 +348,25 @@ export default function SignInPage() {
             <label className="mb-1.5 block text-xs font-semibold text-slate-300">
               Password
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-lg bg-[#0b101b] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-lg bg-[#0b101b] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition pr-12"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-200 transition-colors touch-target"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <button
