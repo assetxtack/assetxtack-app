@@ -42,15 +42,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let unsubscribeFirestore: (() => void) | null = null;
+    let activeUid: string | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(
       auth,
       async (authUser) => {
         if (!authUser) {
+          activeUid = null;
           setUser(null);
           setLoading(false);
           if (unsubscribeFirestore) unsubscribeFirestore();
           return;
+        }
+
+        if (activeUid !== authUser.uid) {
+          if (unsubscribeFirestore) unsubscribeFirestore();
+          activeUid = authUser.uid;
         }
 
         try {
@@ -64,6 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           userDocRef,
           (docSnap) => {
             const profileData = docSnap.exists() ? docSnap.data() : {};
+
+            if (profileData.status === "banned") {
+              const bannedUid = authUser.uid;
+              void firebaseSignOut(auth).finally(() => {
+                window.location.replace(`/suspended?uid=${encodeURIComponent(bannedUid)}`);
+              });
+              return;
+            }
 
             setUser({
       ...authUser,

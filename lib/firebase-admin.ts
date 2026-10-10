@@ -67,8 +67,11 @@ export function getAdminFirestore() {
   try {
     initializeAdminApp();
 
-    const app = getApp();
-    adminDb = getFirestore(app);
+    if (!adminDb) {
+      const app = getApp();
+      adminDb = getFirestore(app);
+      adminDb.settings({ ignoreUndefinedProperties: true });
+    }
     return adminDb;
   } catch (error) {
     console.error("Firebase Admin initialization detailed error:", error);

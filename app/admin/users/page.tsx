@@ -24,6 +24,8 @@ import {
   Loader2,
   ArrowLeft,
   Award,
+  Ban,
+  Shield,
 } from "lucide-react";
 
 interface AdminUser {
@@ -41,6 +43,12 @@ interface AdminUser {
   bankAccount?: { bankName?: string; accountNumber?: string; accountName?: string };
   verificationProvider?: string;
   createdAt?: string | Date;
+  status?: "active" | "banned";
+  bannedAt?: string | Date | null;
+  bannedBy?: string | null;
+  banCategory?: string | null;
+  banReason?: string | null;
+  walletStatus?: { isFrozen?: boolean };
 }
 
 function formatNaira(amount: number) {
@@ -65,6 +73,16 @@ function AdminUsersContent() {
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [banModalOpen, setBanModalOpen] = useState(false);
+  const [banActionLoading, setBanActionLoading] = useState(false);
+  const [banWarning, setBanWarning] = useState<{
+    hasActiveOrders: boolean;
+    hasFunds: boolean;
+    walletBalance: number;
+    activeOrderCount: number;
+  } | null>(null);
+  const [banCategory, setBanCategory] = useState("");
+  const [banReason, setBanReason] = useState("");
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -108,6 +126,189 @@ function AdminUsersContent() {
     setDrawerOpen(false);
     setSelectedUser(null);
   }, []);
+
+  const openBanModal = useCallback((user: AdminUser) => {
+    setSelectedUser(user);
+    setBanModalOpen(true);
+    setBanWarning(null);
+  }, []);
+
+  const closeBanModal = useCallback(() => {
+    setBanModalOpen(false);
+    setBanWarning(null);
+    setBanCategory("");
+    setBanReason("");
+  }, []);
+
+  const handleBanClick = useCallback(async (user: AdminUser) => {
+    try {
+      setBanActionLoading(true);
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      const idToken = await currentUser.getIdToken();
+      const res = await fetch(`/api/admin/users/${user.uid}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "ban", reason: "Violated platform terms", banCategory, banReason }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.uid === user.uid
+              ? {
+                  ...u,
+                  status: "banned",
+                  bannedAt: new Date(),
+                  bannedBy: currentUser.uid,
+                  banCategory,
+                  banReason: banReason || "Violated platform terms",
+                  walletStatus: { isFrozen: true },
+                }
+              : u
+          )
+        );
+        if (selectedUser && selectedUser.uid === user.uid) {
+          setSelectedUser((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: "banned",
+                  bannedAt: new Date(),
+                  bannedBy: currentUser.uid,
+                  banCategory,
+                  banReason: banReason || "Violated platform terms",
+                  walletStatus: { isFrozen: true },
+                }
+              : prev
+          );
+        }
+        closeBanModal();
+      } else if (data.requiresConfirmation) {
+        setBanWarning(data.details);
+      }
+    } catch (err) {
+      console.error("Failed to ban user:", err);
+    } finally {
+      setBanActionLoading(false);
+    }
+  }, [selectedUser, closeBanModal, banCategory, banReason]);
+
+  const handleForceBan = useCallback(async (user: AdminUser) => {
+    try {
+      setBanActionLoading(true);
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      const idToken = await currentUser.getIdToken();
+      const res = await fetch(`/api/admin/users/${user.uid}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "ban", reason: "Violated platform terms", banCategory, banReason, force: true }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.uid === user.uid
+              ? {
+                  ...u,
+                  status: "banned",
+                  bannedAt: new Date(),
+                  bannedBy: currentUser.uid,
+                  banCategory,
+                  banReason: banReason || "Violated platform terms",
+                  walletStatus: { isFrozen: true },
+                }
+              : u
+          )
+        );
+        if (selectedUser && selectedUser.uid === user.uid) {
+          setSelectedUser((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: "banned",
+                  bannedAt: new Date(),
+                  bannedBy: currentUser.uid,
+                  banCategory,
+                  banReason: banReason || "Violated platform terms",
+                  walletStatus: { isFrozen: true },
+                }
+              : prev
+          );
+        }
+        closeBanModal();
+      }
+    } catch (err) {
+      console.error("Failed to force ban user:", err);
+    } finally {
+      setBanActionLoading(false);
+    }
+  }, [selectedUser, closeBanModal, banCategory, banReason]);
+
+  const handleUnban = useCallback(async (user: AdminUser) => {
+    try {
+      setBanActionLoading(true);
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      const idToken = await currentUser.getIdToken();
+      const res = await fetch(`/api/admin/users/${user.uid}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "unban" }),
+      });
+
+      if (res.ok) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.uid === user.uid
+              ? {
+                  ...u,
+                  status: "active",
+                  bannedAt: null,
+                  bannedBy: null,
+                  banReason: null,
+                  banCategory: null,
+                  walletStatus: { isFrozen: false },
+                }
+              : u
+          )
+        );
+        if (selectedUser && selectedUser.uid === user.uid) {
+          setSelectedUser((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: "active",
+                  bannedAt: null,
+                  bannedBy: null,
+                  banReason: null,
+                  banCategory: null,
+                  walletStatus: { isFrozen: false },
+                }
+              : prev
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Failed to unban user:", err);
+    } finally {
+      setBanActionLoading(false);
+    }
+  }, [selectedUser]);
 
   return (
     <div className="space-y-6">
@@ -193,6 +394,27 @@ function AdminUsersContent() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-col gap-1.5">
+                        {u.status === "banned" && (
+                          <>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 w-fit">
+                              <Ban size={12} />
+                              Banned
+                            </span>
+                            {u.banCategory && <span className="text-[11px] text-rose-300/80">{u.banCategory}</span>}
+                          </>
+                        )}
+                        {u.status !== "banned" && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit">
+                            <ShieldCheck size={12} />
+                            Active
+                          </span>
+                        )}
+                        {u.walletStatus?.isFrozen && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit">
+                            <Wallet size={12} />
+                            Frozen
+                          </span>
+                        )}
                         {u.kycStatus ? (
                           <span
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold w-fit ${
@@ -458,6 +680,234 @@ function AdminUsersContent() {
                   </div>
                 </div>
               </div>
+
+              {/* Ban Actions */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold text-[#8A93A3] uppercase tracking-wider font-[var(--font-mono)]">Account Status</h3>
+                <div className="bg-[#0B0E14] rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-[#8A93A3]">Current Status</span>
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                        selectedUser.status === "banned"
+                          ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                          : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      }`}
+                    >
+                      {selectedUser.status === "banned" ? "Banned" : "Active"}
+                    </span>
+                  </div>
+                  {selectedUser.walletStatus?.isFrozen && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-[#8A93A3]">Wallet Status</span>
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <Wallet size={12} className="inline mr-1" />
+                        Frozen
+                      </span>
+                    </div>
+                  )}
+                  {selectedUser.banReason && (
+                    <div className="pt-2 border-t border-[#242938]">
+                      <span className="text-xs text-[#8A93A3]">Ban Reason</span>
+                      <p className="text-sm text-[#EDEFF2] mt-1">{selectedUser.banReason}</p>
+                    </div>
+                  )}
+                  {selectedUser.banCategory && (
+                    <div className="pt-2 border-t border-[#242938]">
+                      <span className="text-xs text-[#8A93A3]">Ban Category</span>
+                      <p className="text-sm text-[#EDEFF2] mt-1">{selectedUser.banCategory}</p>
+                    </div>
+                  )}
+                  <div className="pt-3 flex gap-2">
+                    {selectedUser.status === "banned" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUnban(selectedUser)}
+                        disabled={banActionLoading}
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ShieldCheck size={16} />
+                        {banActionLoading ? "Processing..." : "Unban / Reinstate User"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openBanModal(selectedUser)}
+                        disabled={banActionLoading}
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Ban size={16} />
+                        {banActionLoading ? "Processing..." : "Permanently Ban User"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ban Confirmation Modal */}
+      {banModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={closeBanModal}
+          />
+          <div className="relative w-full max-w-lg bg-[#151922] border border-[#242938] rounded-2xl shadow-2xl mx-4">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-[#242938]">
+              <h2 className="font-[var(--font-display)] font-bold text-lg text-[#EDEFF2] flex items-center gap-2.5">
+                <Ban size={18} className="text-rose-400" />
+                Confirm User Ban
+              </h2>
+              <button
+                type="button"
+                onClick={closeBanModal}
+                className="p-2 rounded-lg text-[#8A93A3] hover:bg-[#0B0E14] hover:text-[#EDEFF2] transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {!banWarning ? (
+                <>
+                  <p className="text-sm text-[#8A93A3]">
+                    You are about to permanently ban <span className="text-[#EDEFF2] font-semibold">{selectedUser.fullName || selectedUser.email}</span>. This will:
+                  </p>
+                  <ul className="space-y-2 text-sm text-[#EDEFF2]">
+                    <li className="flex items-start gap-2">
+                      <ShieldAlert size={16} className="text-rose-400 shrink-0 mt-0.5" />
+                      Disable their Firebase Auth account immediately
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Wallet size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                      Freeze their wallet balance (withdrawals blocked)
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Ban size={16} className="text-rose-400 shrink-0 mt-0.5" />
+                      Set their account status to "banned"
+                    </li>
+                  </ul>
+                  <div className="space-y-4 pt-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#8A93A3] mb-1.5">Ban Category <span className="text-rose-400">*</span></label>
+                      <select
+                        value={banCategory}
+                        onChange={(e) => setBanCategory(e.target.value)}
+                        required
+                        className="w-full rounded-lg bg-[#0B0E14] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
+                      >
+                        <option value="">Select ban category</option>
+                        <option value="Fraud / Scam Attempt">Fraud / Scam Attempt</option>
+                        <option value="Fake Listing Credentials">Fake Listing Credentials</option>
+                        <option value="Terms of Service Violation">Terms of Service Violation</option>
+                        <option value="Abusive Dispute Behavior">Abusive Dispute Behavior</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[#8A93A3] mb-1.5">Additional Notes (optional)</label>
+                      <textarea
+                        value={banReason}
+                        onChange={(e) => setBanReason(e.target.value)}
+                        rows={3}
+                        placeholder="Additional context for the ban..."
+                        className="w-full rounded-lg bg-[#0B0E14] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition resize-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={closeBanModal}
+                      className="px-4 py-2.5 rounded-xl text-sm font-bold text-[#8A93A3] hover:bg-[#0B0E14] transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBanClick(selectedUser)}
+                      disabled={banActionLoading || !banCategory}
+                      className="px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-[#FFFFFF] hover:bg-rose-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {banActionLoading ? "Banning..." : "Confirm Ban"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert size={20} className="text-amber-400" />
+                      <h3 className="text-sm font-bold text-amber-400">Warning: Active Account Detected</h3>
+                    </div>
+                    <p className="text-xs text-[#8A93A3]">
+                      This user has outstanding platform activity. Banning will freeze all associated funds and escrow.
+                    </p>
+                    <div className="space-y-2 pt-2">
+                      {banWarning.hasActiveOrders && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[#8A93A3]">Active Orders</span>
+                          <span className="text-[#EDEFF2] font-semibold">{banWarning.activeOrderCount}</span>
+                        </div>
+                      )}
+                      {banWarning.hasFunds && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[#8A93A3]">Wallet Balance</span>
+                          <span className="text-[#EDEFF2] font-semibold">{formatNaira(banWarning.walletBalance)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-4 pt-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#8A93A3] mb-1.5">Ban Category <span className="text-rose-400">*</span></label>
+                      <select
+                        value={banCategory}
+                        onChange={(e) => setBanCategory(e.target.value)}
+                        required
+                        className="w-full rounded-lg bg-[#0B0E14] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
+                      >
+                        <option value="">Select ban category</option>
+                        <option value="Fraud / Scam Attempt">Fraud / Scam Attempt</option>
+                        <option value="Fake Listing Credentials">Fake Listing Credentials</option>
+                        <option value="Terms of Service Violation">Terms of Service Violation</option>
+                        <option value="Abusive Dispute Behavior">Abusive Dispute Behavior</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[#8A93A3] mb-1.5">Additional Notes (optional)</label>
+                      <textarea
+                        value={banReason}
+                        onChange={(e) => setBanReason(e.target.value)}
+                        rows={3}
+                        placeholder="Additional context for the ban..."
+                        className="w-full rounded-lg bg-[#0B0E14] px-4 py-3 text-sm text-white border border-slate-800 placeholder-slate-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition resize-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={closeBanModal}
+                      className="px-4 py-2.5 rounded-xl text-sm font-bold text-[#8A93A3] hover:bg-[#0B0E14] transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleForceBan(selectedUser)}
+                      disabled={banActionLoading || !banCategory}
+                      className="px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-[#FFFFFF] hover:bg-rose-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {banActionLoading ? "Force Banning..." : "Force Ban & Freeze Wallet/Escrow"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

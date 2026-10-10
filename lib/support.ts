@@ -2,7 +2,7 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 
 export interface SupportTicket {
   userId: string;
-  orderId?: string;
+  orderId?: string | null;
   subject: string;
   message: string;
   category: string;
@@ -11,15 +11,23 @@ export interface SupportTicket {
   proofUrls: string[];
   createdAt: Date;
   updatedAt: Date;
+  isAppeal?: boolean;
+  bannedUserEmail?: string | null;
+  bannedUserName?: string | null;
+  originalBanUid?: string | null;
 }
 
 export interface CreateTicketPayload {
   userId: string;
-  orderId?: string;
+  orderId?: string | null;
   subject: string;
   message: string;
   category: string;
   proofUrls?: string[];
+  isAppeal?: boolean;
+  bannedUserEmail?: string;
+  bannedUserName?: string;
+  originalBanUid?: string;
 }
 
 export async function createSupportTicket(payload: CreateTicketPayload) {
@@ -31,15 +39,19 @@ export async function createSupportTicket(payload: CreateTicketPayload) {
   const now = new Date();
   const ticket: SupportTicket = {
     userId: payload.userId,
-    orderId: payload.orderId,
+    ...(payload.orderId ? { orderId: payload.orderId } : { orderId: null }),
     subject: payload.subject,
     message: payload.message,
     category: payload.category,
-    status: "open",
-    priority: "medium",
+    status: payload.isAppeal ? "under_review" : "open",
+    priority: payload.isAppeal ? "high" : "medium",
     proofUrls: payload.proofUrls || [],
     createdAt: now,
     updatedAt: now,
+    ...(payload.isAppeal ? { isAppeal: true } : {}),
+    ...(payload.bannedUserEmail ? { bannedUserEmail: payload.bannedUserEmail } : { bannedUserEmail: null }),
+    ...(payload.bannedUserName ? { bannedUserName: payload.bannedUserName } : { bannedUserName: null }),
+    ...(payload.originalBanUid ? { originalBanUid: payload.originalBanUid } : { originalBanUid: null }),
   };
 
   const ticketRef = await adminDb.collection("supportTickets").add(ticket);
