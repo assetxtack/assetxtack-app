@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
@@ -11,7 +11,7 @@ import {
   signInWithRedirect,
   getRedirectResult
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 export default function SignInPage() {
@@ -22,6 +22,8 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [checkingGoogleRedirect, setCheckingGoogleRedirect] = useState(true);
+  const googleFlowRef = useRef(false);
 
   const redirectDisabledUser = async (email?: string | null) => {
     if (!email) {
@@ -38,10 +40,10 @@ export default function SignInPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && user) {
-      router.push("/dashboard");
+    if (!authLoading && !checkingGoogleRedirect && user && !googleFlowRef.current) {
+      router.replace("/dashboard");
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, checkingGoogleRedirect, router]);
 
   useEffect(() => {
     if (!auth) return;
@@ -49,7 +51,7 @@ export default function SignInPage() {
     getRedirectResult(auth)
       .then(async (result) => {
         if (result?.user) {
-          // Ensure Google redirect sign-ins also sync user data to Firestore
+          googleFlowRef.current = true;
           const googleUser = result.user;
           const userRef = doc(db, "users", googleUser.uid);
           const userSnap = await getDoc(userRef);
@@ -60,21 +62,11 @@ export default function SignInPage() {
             return;
           }
 
-          await setDoc(userRef, {
-            uid: googleUser.uid,
-            email: googleUser.email || "",
-            displayName: googleUser.displayName || "New User",
-            photoURL: googleUser.photoURL || "",
-            phoneNumber: googleUser.phoneNumber || "",
-            role: "user",
-            status: "active",
-            createdAt: new Date().toISOString(),
-          }, { merge: true });
-
           setSuccess("Login successful! Redirecting...");
+          router.replace("/dashboard");
         }
       })
-      .catch((err) => {
+      .catch(async (err) => {
         const error = err as { message?: string; code?: string };
 
         // Check for disabled/banned user - get uid from auth.currentUser if available
@@ -82,6 +74,8 @@ export default function SignInPage() {
           void redirectDisabledUser((error as any).customData?.email || email.trim());
           return;
         }
+
+        if (auth.currentUser) await auth.signOut();
 
         const isNetworkError =
           error?.message?.includes("network") ||
@@ -93,6 +87,10 @@ export default function SignInPage() {
         if (!isNetworkError && !isStorageError && !isUserClosed) {
           setError(error.message || "Google sign-in failed. Please try again.");
         }
+      })
+      .finally(() => {
+        googleFlowRef.current = false;
+        setCheckingGoogleRedirect(false);
       });
   }, [router]);
 
@@ -148,6 +146,7 @@ export default function SignInPage() {
     setError("");
     setSuccess("");
     setLoading(true);
+    googleFlowRef.current = true;
 
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
@@ -183,22 +182,13 @@ export default function SignInPage() {
         if (!userSnap.exists()) {
           setError("No account found with this Google account. Please sign up first.");
           await auth.signOut();
+          googleFlowRef.current = false;
           return;
         }
-
-        await setDoc(userRef, {
-          uid: googleUser.uid,
-          email: googleUser.email || "",
-          displayName: googleUser.displayName || "New User",
-          photoURL: googleUser.photoURL || "",
-          phoneNumber: googleUser.phoneNumber || "",
-          role: "user",
-          status: "active",
-          createdAt: new Date().toISOString(),
-        }, { merge: true });
       }
 
       setSuccess("Login successful! Redirecting...");
+      router.replace("/dashboard");
     } catch (err) {
       const error = err as { message?: string; code?: string };
 
@@ -207,6 +197,8 @@ export default function SignInPage() {
         void redirectDisabledUser((error as any).customData?.email || email.trim());
         return;
       }
+
+      if (auth.currentUser) await auth.signOut();
 
       const isNetworkError =
         error?.message?.includes("network") ||
@@ -219,6 +211,7 @@ export default function SignInPage() {
         setError(error.message || "Failed to sign in with Google.");
       }
     } finally {
+      googleFlowRef.current = false;
       setLoading(false);
     }
   };

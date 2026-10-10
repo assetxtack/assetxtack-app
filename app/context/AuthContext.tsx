@@ -13,7 +13,6 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { syncUserToFirestore } from "@/lib/authSync";
 
 // Custom user interface extending Firebase Auth User with Firestore profile fields
 export interface AppUser extends User {
@@ -58,12 +57,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (activeUid !== authUser.uid) {
           if (unsubscribeFirestore) unsubscribeFirestore();
           activeUid = authUser.uid;
-        }
-
-        try {
-          await syncUserToFirestore(authUser);
-        } catch (error) {
-          console.error("Failed to sync user to Firestore:", error);
         }
 
         const userDocRef = doc(db, "users", authUser.uid);

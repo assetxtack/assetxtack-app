@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
@@ -18,10 +18,11 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const registrationFlowRef = useRef(false);
 
   useEffect(() => {
-    if (!authLoading && user) {
-      router.push("/dashboard");
+    if (!authLoading && user && !registrationFlowRef.current) {
+      router.replace("/dashboard");
     }
   }, [user, authLoading, router]);
 
@@ -56,6 +57,7 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
+    registrationFlowRef.current = true;
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
@@ -79,9 +81,10 @@ export default function RegisterPage() {
         createdAt: now,
       }, { merge: true });
 
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err) {
       const error = err as { code?: string; message?: string };
+      if (auth.currentUser) await auth.signOut();
       const friendlyError =
         error.code === "auth/email-already-in-use"
           ? "An account with this email already exists."
@@ -90,6 +93,7 @@ export default function RegisterPage() {
           : error.message || "Failed to create account. Please try again.";
       setError(friendlyError);
     } finally {
+      registrationFlowRef.current = false;
       setLoading(false);
     }
   };
@@ -102,6 +106,7 @@ export default function RegisterPage() {
 
     setError("");
     setLoading(true);
+    registrationFlowRef.current = true;
 
     try {
       const provider = new GoogleAuthProvider();
@@ -115,6 +120,7 @@ export default function RegisterPage() {
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
+        await auth.signOut();
         setError("An account with this Google account already exists. Please sign in instead.");
         return;
       }
@@ -131,9 +137,10 @@ export default function RegisterPage() {
         createdAt: now,
       }, { merge: true });
 
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err) {
       const error = err as { code?: string; message?: string };
+      if (auth.currentUser) await auth.signOut();
       const friendlyError =
         error.code === "auth/email-already-in-use"
           ? "An account with this email already exists."
@@ -142,6 +149,7 @@ export default function RegisterPage() {
             : error.message || "Failed to sign up with Google. Please try again.";
       setError(friendlyError);
     } finally {
+      registrationFlowRef.current = false;
       setLoading(false);
     }
   };
