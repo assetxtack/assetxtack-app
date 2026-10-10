@@ -13,6 +13,7 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { syncUserToFirestore } from "@/lib/authSync";
 
 // Custom user interface extending Firebase Auth User with Firestore profile fields
 export interface AppUser extends User {
@@ -41,28 +42,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let unsubscribeFirestore: (() => void) | null = null;
-    let activeUid: string | null = null;
+    let authEventId = 0;
 
     const unsubscribeAuth = onAuthStateChanged(
       auth,
       async (authUser) => {
+        const currentEventId = ++authEventId;
+        setLoading(true);
+        if (unsubscribeFirestore) {
+          unsubscribeFirestore();
+          unsubscribeFirestore = null;
+        }
+
         if (!authUser) {
-          activeUid = null;
           setUser(null);
           setLoading(false);
-          if (unsubscribeFirestore) unsubscribeFirestore();
           return;
         }
 
-        if (activeUid !== authUser.uid) {
-          if (unsubscribeFirestore) unsubscribeFirestore();
-          activeUid = authUser.uid;
+        try {
+          await syncUserToFirestore(authUser);
+        } catch (error) {
+          console.error("Failed to sync authenticated user profile:", error);
+          if (currentEventId === authEventId) {
+            setUser(null);
+            setLoading(false);
+            if (auth.currentUser?.uid === authUser.uid) {
+              void firebaseSignOut(auth);
+            }
+          }
+          return;
         }
 
         const userDocRef = doc(db, "users", authUser.uid);
+        if (currentEventId !== authEventId) return;
+
         unsubscribeFirestore = onSnapshot(
           userDocRef,
           (docSnap) => {
+            if (currentEventId !== authEventId) return;
             const profileData = docSnap.exists() ? docSnap.data() : {};
 
             if (profileData.status === "banned") {
@@ -84,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setLoading(false);
           },
           (error) => {
+            if (currentEventId !== authEventId) return;
             console.error("Error fetching user profile from Firestore:", error);
             setUser(authUser as AppUser);
             setLoading(false);
@@ -92,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       (authError) => {
         console.error("Auth state listener error:", authError);
+        authEventId += 1;
         setUser(null);
         setLoading(false);
         if (unsubscribeFirestore) unsubscribeFirestore();
@@ -106,7 +126,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    if (result.user) await syncUserToFirestore(result.user);
   };
 
   const sendEmailLink = async (email: string) => {

@@ -42,3 +42,9 @@ body {
 .animate-border-spin {
   animation: borderRotate 4s linear infinite;
 }
+
+/* Mobile touch targets - ensures minimum tap area on iOS/mobile */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}

@@ -25,13 +25,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
 
       allow create: if isUserId(userId)
+        && request.resource.data.role == 'user'
         && hasNoForbiddenFields([
           "walletBalance",
           "escrowBalance",
           "lifetimeSales",
           "kycStatus",
           "sellerVerified",
-          "role",
           "bankAccount",
           "verifiedName",
           "verifiedIdType",
@@ -43,13 +43,13 @@ service cloud.firestore {
         ]);
 
       allow update: if isUserId(userId)
+        && request.resource.data.role == resource.data.role
         && hasNoForbiddenFields([
           "walletBalance",
           "escrowBalance",
           "lifetimeSales",
           "kycStatus",
           "sellerVerified",
-          "role",
           "bankAccount",
           "verifiedName",
           "verifiedIdType",

@@ -48,22 +48,52 @@ function Ticker() {
 }
 
 // Interactive FAQ Component
-function FAQItem({ question, answer }: { question: string; answer: string }) {
-  const [open, setOpen] = useState(false);
+const FAQ_DATA = [
+  {
+    question: "How does the escrow protection work?",
+    answer: "When a buyer purchases an account, the funds are paid directly to AssetXtack Escrow (via Paystack/Flutterwave). We notify the seller to release the account credentials. The buyer inspects the account, and once confirmed, the funds are released to the seller's bank account.",
+  },
+  {
+    question: "How fast do sellers get paid?",
+    answer: "Once the buyer approves the handover, funds are transferred instantly to the seller's registered Nigerian bank account within minutes.",
+  },
+  {
+    question: "What happens if the seller gives me wrong credentials?",
+    answer: "You can open a dispute immediately from your order dashboard. The seller will not receive payment, and our support team will verify the credentials and issue you a full refund.",
+  },
+  {
+    question: "Is it safe to link my Nigerian bank account?",
+    answer: "Yes. All financial transactions are processed securely through CBN-licensed payment partners like Paystack and Flutterwave with enterprise 256-bit SSL encryption.",
+  },
+];
+
+function FAQSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
   return (
-    <div className="border border-[#242938] bg-[#151922] rounded-xl overflow-hidden transition-colors">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full p-4 text-left flex items-center justify-between gap-4 font-semibold text-sm text-[#EDEFF2] hover:text-[#FFB020] transition-colors"
-      >
-        <span>{question}</span>
-        <ChevronDown size={18} className={`shrink-0 transition-transform ${open ? "rotate-180 text-[#FFB020]" : "text-[#8A93A3]"}`} />
-      </button>
-      {open && (
-        <div className="px-4 pb-4 text-xs md:text-sm text-[#8A93A3] border-t border-[#242938]/50 pt-3 leading-relaxed">
-          {answer}
+    <div className="space-y-3">
+      {FAQ_DATA.map((item, index) => (
+        <div
+          key={item.question}
+          className="border border-[#242938] bg-[#151922] rounded-xl overflow-hidden transition-colors"
+        >
+          <button
+            onClick={() => setOpenIndex(openIndex === index ? null : index)}
+            className="w-full p-4 text-left flex items-center justify-between gap-4 font-semibold text-sm text-[#EDEFF2] hover:text-[#FFB020] transition-colors touch-target"
+          >
+            <span>{item.question}</span>
+            <ChevronDown
+              size={18}
+              className={`shrink-0 transition-transform ${openIndex === index ? "rotate-180 text-[#FFB020]" : "text-[#8A93A3]"}`}
+            />
+          </button>
+          {openIndex === index && (
+            <div className="px-4 pb-4 text-xs md:text-sm text-[#8A93A3] border-t border-[#242938]/50 pt-3 leading-relaxed">
+              {item.answer}
+            </div>
+          )}
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -260,22 +290,7 @@ export default function Home() {
         </div>
 
         <div className="space-y-3">
-          <FAQItem
-            question="How does the escrow protection work?"
-            answer="When a buyer purchases an account, the funds are paid directly to AssetXtack Escrow (via Paystack/Flutterwave). We notify the seller to release the account credentials. The buyer inspects the account, and once confirmed, the funds are released to the seller's bank account."
-          />
-          <FAQItem
-            question="How fast do sellers get paid?"
-            answer="Once the buyer approves the handover, funds are transferred instantly to the seller's registered Nigerian bank account within minutes."
-          />
-          <FAQItem
-            question="What happens if the seller gives me wrong credentials?"
-            answer="You can open a dispute immediately from your order dashboard. The seller will not receive payment, and our support team will verify the credentials and issue you a full refund."
-          />
-          <FAQItem
-            question="Is it safe to link my Nigerian bank account?"
-            answer="Yes. All financial transactions are processed securely through CBN-licensed payment partners like Paystack and Flutterwave with enterprise 256-bit SSL encryption."
-          />
+          <FAQSection />
         </div>
       </section>
 

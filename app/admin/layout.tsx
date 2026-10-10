@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import {
   Users,
@@ -47,39 +46,47 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [adminLoading, setAdminLoading] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
-      if (!authUser) {
-        router.push("/sign-in");
-        setLoading(false);
-        return;
-      }
+    if (authLoading) return;
+    if (!user) {
+      setIsAdmin(false);
+      setAdminLoading(false);
+      router.replace("/sign-in");
+      return;
+    }
 
-      const unsubDoc = onSnapshot(doc(db, "users", authUser.uid), (snap) => {
+    setAdminLoading(true);
+    const unsubscribe = onSnapshot(
+      doc(db, "users", user.uid),
+      (snap) => {
         if (snap.exists()) {
           const data = snap.data();
           const admin = data?.role === "admin" || data?.isAdmin === true;
           setIsAdmin(admin);
           if (!admin) {
-            router.push("/dashboard");
+            router.replace("/dashboard");
           }
         } else {
           setIsAdmin(false);
-          router.push("/dashboard");
+          router.replace("/dashboard");
         }
-        setLoading(false);
-      });
-
-      return () => unsubDoc();
-    });
+        setAdminLoading(false);
+      },
+      (error) => {
+        console.error("Failed to check admin access:", error);
+        setIsAdmin(false);
+        setAdminLoading(false);
+        router.replace("/dashboard");
+      }
+    );
 
     return () => unsubscribe();
-  }, [router]);
+  }, [authLoading, user?.uid, router]);
 
   const handleNavClick = useCallback(
     (href: string) => {
@@ -89,13 +96,15 @@ export default function AdminLayout({
     [router]
   );
 
-  if (loading) {
+  if (authLoading || adminLoading) {
     return (
       <div className="min-h-screen bg-[#0B0E14] flex items-center justify-center">
         <Loader2 size={48} className="animate-spin text-[#FFB020]" />
       </div>
     );
   }
+
+  if (!user) return null;
 
   if (!isAdmin) {
     return (

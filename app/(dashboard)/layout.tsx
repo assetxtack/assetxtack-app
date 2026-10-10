@@ -3,6 +3,7 @@ import { useState } from "react";
 import Sidebar from "../components/dashboard/Sidebar";
 import Header from "../components/dashboard/Header";
 import Footer from "../components/Footer"; // Added footer now shows on dashboard routes too
+import AuthGuard from "../components/AuthGuard";
 
 export default function DashboardLayout({
   children,
@@ -12,6 +13,7 @@ export default function DashboardLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#0B0E14] text-[#EDEFF2] font-[var(--font-body)] flex">
       {/* Sidebar (Desktop persistent + Mobile overlay) */}
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
@@ -28,5 +30,6 @@ export default function DashboardLayout({
         <Footer />
       </div>
     </div>
+    </AuthGuard>
   );
 }
