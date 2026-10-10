@@ -4,9 +4,19 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  User,
+} from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+
+const GOOGLE_SIGNUP_REDIRECT_KEY = "assetxtack_google_signup_redirect";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,12 +29,76 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const registrationFlowRef = useRef(false);
+  const [checkingGoogleRedirect, setCheckingGoogleRedirect] = useState(true);
+
+  const finishGoogleSignUp = async (googleUser: User) => {
+    const userRef = doc(db, "users", googleUser.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      await auth.signOut();
+      setError("An account with this Google account already exists. Please sign in instead.");
+      return false;
+    }
+
+    await setDoc(userRef, {
+      uid: googleUser.uid,
+      email: googleUser.email || "",
+      displayName: googleUser.displayName || "New User",
+      photoURL: googleUser.photoURL || "",
+      phoneNumber: googleUser.phoneNumber || "",
+      role: "user",
+      status: "active",
+      createdAt: new Date().toISOString(),
+    }, { merge: true });
+
+    router.replace("/dashboard");
+    return true;
+  };
 
   useEffect(() => {
-    if (!authLoading && user && !registrationFlowRef.current) {
+    let redirectPending = false;
+    try {
+      redirectPending = window.sessionStorage.getItem(GOOGLE_SIGNUP_REDIRECT_KEY) === "true";
+    } catch (storageError) {
+      console.error("Could not read Google sign-up redirect state:", storageError);
+    }
+
+    if (!redirectPending || !auth) {
+      setCheckingGoogleRedirect(false);
+      return;
+    }
+
+    registrationFlowRef.current = true;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) await finishGoogleSignUp(result.user);
+        else if (auth.currentUser) {
+          await auth.signOut();
+          setError("Google sign-up was interrupted. Please try again.");
+        }
+      })
+      .catch(async (err) => {
+        const error = err as { code?: string; message?: string };
+        if (auth.currentUser) await auth.signOut();
+        setError(error.message || "Google sign-up could not be completed. Please try again.");
+      })
+      .finally(() => {
+        try {
+          window.sessionStorage.removeItem(GOOGLE_SIGNUP_REDIRECT_KEY);
+        } catch (storageError) {
+          console.error("Could not clear Google sign-up redirect state:", storageError);
+        }
+        registrationFlowRef.current = false;
+        setCheckingGoogleRedirect(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading && !checkingGoogleRedirect && user && !registrationFlowRef.current) {
       router.replace("/dashboard");
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, checkingGoogleRedirect, router]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,32 +186,17 @@ export default function RegisterPage() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
 
-      const result = await signInWithPopup(auth, provider);
-      if (!result?.user) return;
-
-      const googleUser = result.user;
-      const userRef = doc(db, "users", googleUser.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (userSnap.exists()) {
-        await auth.signOut();
-        setError("An account with this Google account already exists. Please sign in instead.");
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      if (isIOS) {
+        window.sessionStorage.setItem(GOOGLE_SIGNUP_REDIRECT_KEY, "true");
+        await signInWithRedirect(auth, provider);
         return;
       }
 
-      const now = new Date().toISOString();
-      await setDoc(userRef, {
-        uid: googleUser.uid,
-        email: googleUser.email || "",
-        displayName: googleUser.displayName || "New User",
-        photoURL: googleUser.photoURL || "",
-        phoneNumber: googleUser.phoneNumber || "",
-        role: "user",
-        status: "active",
-        createdAt: now,
-      }, { merge: true });
-
-      router.replace("/dashboard");
+      const result = await signInWithPopup(auth, provider);
+      if (!result?.user) return;
+      await finishGoogleSignUp(result.user);
     } catch (err) {
       const error = err as { code?: string; message?: string };
       if (auth.currentUser) await auth.signOut();

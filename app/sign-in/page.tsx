@@ -152,10 +152,16 @@ export default function SignInPage() {
     provider.setCustomParameters({ prompt: "select_account" });
 
     const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isIOS = typeof window !== "undefined" &&
+      (/iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
     let result;
     try {
-      if (isMobile) {
+      if (isIOS) {
+        await signInWithRedirect(auth, provider);
+        return;
+      } else if (isMobile) {
         try {
           result = await signInWithPopup(auth, provider);
         } catch (popupErr) {
