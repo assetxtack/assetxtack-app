@@ -106,32 +106,54 @@ export default function SignInPage() {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[SignIn] Form submitted with email:", email.trim());
     setError("");
     setSuccess("");
 
     const cleanEmail = email.trim();
-    const cleanPassword = password.trim();
+    const cleanPassword = password;
 
     if (!cleanEmail || !cleanPassword) {
+      console.warn("[SignIn] Missing email or password");
       setError("Please provide both email and password.");
       return;
     }
 
     if (!auth) {
+      console.error("[SignIn] Firebase auth not initialized");
       setError("Firebase Authentication is not initialized properly.");
       return;
     }
 
     setLoading(true);
+    console.log("[SignIn] Calling Firebase signInWithEmailAndPassword...");
 
     try {
       const { signInWithEmailAndPassword } = await import("firebase/auth");
-      await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+      console.log("[SignIn] signInWithEmailAndPassword invoked");
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+      console.log("[SignIn] Firebase sign-in success:", userCredential.user?.uid);
+
+      if (!userCredential.user) {
+        setError("Sign in failed: no user returned.");
+        return;
+      }
+
+      try {
+        await syncUserToFirestore(userCredential.user);
+      } catch (syncErr) {
+        console.error("[SignIn] Failed to sync user profile:", syncErr);
+      }
+
       setSuccess("Login successful! Redirecting...");
+      setLoading(false);
+      router.push("/dashboard");
+      if (typeof window !== "undefined") {
+        window.location.href = "/dashboard";
+      }
     } catch (err) {
       const error = err as { code?: string; message?: string };
 
-      // Check for disabled/banned user
       if (error.code === "auth/user-disabled") {
         void redirectDisabledUser((error as any).customData?.email || cleanEmail);
         return;
