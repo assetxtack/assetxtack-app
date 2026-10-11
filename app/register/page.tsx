@@ -112,61 +112,87 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[Register] Form submitted with email:", email.trim());
     setError("");
 
     const cleanEmail = email.trim();
-    const cleanPassword = password.trim();
-    const cleanConfirmPassword = confirmPassword.trim();
+    const cleanPassword = password;
+    const cleanConfirmPassword = confirmPassword;
     const cleanFullName = fullName.trim();
     const cleanPhone = phone.trim();
 
     if (!cleanFullName || !cleanEmail || !cleanPassword) {
+      console.warn("[Register] Missing required fields");
       setError("Please fill in all required fields.");
       return;
     }
 
     if (cleanPassword !== cleanConfirmPassword) {
+      console.warn("[Register] Passwords do not match");
       setError("Passwords do not match.");
       return;
     }
 
     if (cleanPassword.length < 6) {
+      console.warn("[Register] Password too short");
       setError("Password must be at least 6 characters.");
       return;
     }
 
     if (!auth) {
+      console.error("[Register] Firebase auth not initialized");
       setError("Firebase Authentication is not initialized properly.");
       return;
     }
 
     setLoading(true);
     registrationFlowRef.current = true;
+    console.log("[Register] Calling Firebase createUserWithEmailAndPassword...");
 
-    try {
+     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      
+      console.log("[Register] Firebase sign-up success:", userCredential.user?.uid);
+
+      if (!userCredential.user) {
+        setError("Account creation failed: no user returned.");
+        return;
+      }
+
       if (cleanFullName) {
-        await updateProfile(userCredential.user, {
-          displayName: cleanFullName,
-        });
+        try {
+          await updateProfile(userCredential.user, {
+            displayName: cleanFullName,
+          });
+        } catch (profileErr) {
+          console.error("[Register] Failed to update profile:", profileErr);
+        }
       }
 
       const now = new Date().toISOString();
       const userRef = doc(db, "users", userCredential.user.uid);
-      await setDoc(userRef, {
-        uid: userCredential.user.uid,
-        email: cleanEmail,
-        displayName: cleanFullName,
-        photoURL: userCredential.user.photoURL || "",
-        phoneNumber: cleanPhone,
-        role: "user",
-        status: "active",
-        isVerified: false,
-        createdAt: now,
-      }, { merge: true });
+      try {
+        await setDoc(userRef, {
+          uid: userCredential.user.uid,
+          email: cleanEmail,
+          displayName: cleanFullName,
+          photoURL: userCredential.user.photoURL || "",
+          phoneNumber: cleanPhone,
+          role: "user",
+          status: "active",
+          isVerified: false,
+          createdAt: now,
+        }, { merge: true });
+      } catch (setDocErr) {
+        console.error("[Register] Failed to create user document:", setDocErr);
+        setError("Failed to complete registration. Please try again.");
+        return;
+      }
 
+      setLoading(false);
       router.replace("/dashboard");
+      if (typeof window !== "undefined") {
+        window.location.href = "/dashboard";
+      }
     } catch (err) {
       const error = err as { code?: string; message?: string };
       if (auth.currentUser) await auth.signOut();
@@ -176,6 +202,7 @@ export default function RegisterPage() {
           : error.code === "auth/invalid-email"
           ? "Invalid email address."
           : error.message || "Failed to create account. Please try again.";
+      console.error("[Register] Signup error:", err);
       setError(friendlyError);
     } finally {
       registrationFlowRef.current = false;
