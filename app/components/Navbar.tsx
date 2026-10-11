@@ -174,13 +174,13 @@ export default function Navbar() {
                 href="/sign-in"
                 className="text-sm font-semibold text-[#EDEFF2] px-4.5 py-2.5 rounded-xl border border-[#242938] bg-[#151922]/40 hover:bg-[#151922] hover:border-[#FFB020]/50 transition-all duration-200"
               >
-                Sign in
+                Sign In
               </Link>
               <Link
-                href="/sign-in?mode=signup"
+                href="/register"
                 className="text-sm font-semibold text-[#0B0E14] bg-[#FFB020] hover:bg-[#ffa500] px-4.5 py-2.5 rounded-xl border border-transparent hover:border-[#EDEFF2] shadow-sm transition-all duration-200"
               >
-                Sign up
+                Sign Up
               </Link>
             </div>
 
@@ -217,14 +217,14 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
               className="rounded-xl px-4 py-2.5 text-sm font-semibold text-[#EDEFF2] bg-[#151922] border border-[#242938] hover:border-[#FFB020] text-center transition-all"
             >
-              Sign in
+              Sign In
             </Link>
             <Link
-              href="/sign-in?mode=signup"
+              href="/register"
               onClick={() => setMenuOpen(false)}
               className="rounded-xl px-4 py-2.5 text-sm font-semibold bg-[#FFB020] text-[#0B0E14] text-center transition-all"
             >
-              Sign up
+              Sign Up
             </Link>
           </div>
         </div>

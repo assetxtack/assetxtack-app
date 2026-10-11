@@ -21,10 +21,6 @@ export async function syncUserToFirestore(firebaseUser: User): Promise<UserProfi
   const userRef = doc(db, "users", firebaseUser.uid);
   const snapshot = await getDoc(userRef);
 
-  if (snapshot.exists()) {
-    return snapshot.data() as UserProfile;
-  }
-
   const now = new Date().toISOString();
   const profile: UserProfile = {
     uid: firebaseUser.uid,
@@ -36,6 +32,11 @@ export async function syncUserToFirestore(firebaseUser: User): Promise<UserProfi
     isVerified: false,
     createdAt: now,
   };
+
+  if (snapshot.exists()) {
+    await setDoc(userRef, profile, { merge: true });
+    return { ...(snapshot.data() as UserProfile), ...profile };
+  }
 
   await setDoc(userRef, profile, { merge: true });
   return profile;
