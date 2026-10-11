@@ -24,7 +24,7 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [userData, setUserData] = useState<{ fullName?: string; sellerVerified?: boolean; kycStatus?: string } | null>(null);
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, requiresEmailVerification } = useAuth();
   const pathname = usePathname();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +72,7 @@ export default function Navbar() {
           <Wordmark size={22} />
         </Link>
 
-        {!loading && user ? (
+        {!loading && user && !requiresEmailVerification ? (
           <div className="flex items-center gap-3">
             <Link
               href="/dashboard"
@@ -195,7 +195,7 @@ export default function Navbar() {
         )}
       </div>
 
-      {!user && menuOpen && (
+      {(!user || requiresEmailVerification) && menuOpen && (
         <div className="md:hidden px-6 pb-6 pt-3 flex flex-col gap-2.5 border-t border-[#242938] bg-[#0B0E14] z-40 shadow-2xl relative">
           {PUBLIC_NAV_LINKS.map((link) => (
             <Link

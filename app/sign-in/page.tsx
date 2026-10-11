@@ -11,6 +11,7 @@ import {
   signInWithRedirect,
   getRedirectResult,
   getAdditionalUserInfo,
+  sendEmailVerification,
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -19,7 +20,7 @@ import { Eye, EyeOff } from "lucide-react";
 
 export default function SignInPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, requiresEmailVerification } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -62,13 +63,17 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (!authLoading && !checkingGoogleRedirect && user && !googleFlowRef.current && !emailFlowRef.current) {
+      if (requiresEmailVerification) {
+        router.replace("/verify-email");
+        return;
+      }
       void Promise.resolve().then(() => {
         setTimeout(() => {
           router.replace("/dashboard");
         }, 1500);
       });
     }
-  }, [user, authLoading, checkingGoogleRedirect, router]);
+  }, [user, authLoading, checkingGoogleRedirect, router, requiresEmailVerification]);
 
   useEffect(() => {
     if (!auth) return;
@@ -165,6 +170,26 @@ export default function SignInPage() {
         await syncUserToFirestore(userCredential.user);
       } catch (syncErr) {
         console.error("[SignIn] Failed to sync user profile:", syncErr);
+      }
+
+      const userDocRef = doc(db, "users", userCredential.user.uid);
+      const userSnap = await getDoc(userDocRef);
+      const userData = userSnap.exists() ? userSnap.data() : {};
+
+      if (!userData.emailVerified) {
+        try {
+          await sendEmailVerification(userCredential.user);
+        } catch (verificationErr) {
+          console.error("[SignIn] Failed to send verification email:", verificationErr);
+        }
+        setSuccess("Please verify your email. Check your inbox for verification link.");
+        setLoading(false);
+        void Promise.resolve().then(() => {
+          setTimeout(() => {
+            router.push("/verify-email");
+          }, 1500);
+        });
+        return;
       }
 
       setSuccess("Login successful! Redirecting...");

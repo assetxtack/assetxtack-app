@@ -1,0 +1,686 @@
+[debug] [2026-10-11T13:10:46.106Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T13:10:46.122Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules --force
+[debug] [2026-10-11T13:10:46.124Z] CLI Version:   15.28.1
+[debug] [2026-10-11T13:10:46.124Z] Platform:      win32
+[debug] [2026-10-11T13:10:46.125Z] Node Version:  v24.15.0
+[debug] [2026-10-11T13:10:46.126Z] Detected Agent: open_code
+[debug] [2026-10-11T13:10:46.126Z] Time:          Sun Oct 11 2026 14:10:46 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T13:10:46.127Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-11T13:10:46.274Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-10-11T13:11:24.233Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-11T13:11:24.234Z] > authorizing via signed-in user (assetxtack@gmail.com)
+[debug] [2026-10-11T13:11:24.235Z] [iam] checking project assetxtack-eeca0 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-11T13:11:24.238Z] Checked if tokens are valid: false, expires at: 1790507153471
+[debug] [2026-10-11T13:11:24.239Z] Checked if tokens are valid: false, expires at: 1790507153471
+[debug] [2026-10-11T13:11:24.240Z] > refreshing access token with scopes: []
+[debug] [2026-10-11T13:11:24.250Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-10-11T13:11:24.250Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-10-11T13:11:24.934Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-10-11T13:11:24.935Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-10-11T13:11:24.988Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions [none]
+[debug] [2026-10-11T13:11:24.989Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions  x-goog-user-project=assetxtack-eeca0
+[debug] [2026-10-11T13:11:24.990Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-11T13:11:25.009Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-10-11T13:11:25.010Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2026-10-11T13:11:26.403Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions 200
+[debug] [2026-10-11T13:11:26.403Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'assetxtack-eeca0'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-11T13:11:26.426Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:26.427Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:26.427Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) [none]
+[debug] [2026-10-11T13:11:27.165Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) 200
+[debug] [2026-10-11T13:11:27.166Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) {"name":"projects/assetxtack-eeca0/databases/(default)","uid":"7d783f2b-e225-47a9-95f6-6a8ca6f63aaa","createTime":"2026-08-15T22:17:46.857763Z","updateTime":"2026-08-15T22:17:46.857763Z","locationId":"europe-west1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-11T12:11:27.281060Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IOWFt42FspcDMLqX6rrVo5YD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-11T13:11:27.169Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:27.169Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:27.170Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [none]
+[debug] [2026-10-11T13:11:27.170Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [omitted]
+[debug] [2026-10-11T13:11:28.091Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test 200
+[debug] [2026-10-11T13:11:28.092Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-11T13:11:28.098Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:28.098Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:28.099Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases pageSize=10&pageToken=
+[debug] [2026-10-11T13:11:28.543Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases 200
+[debug] [2026-10-11T13:11:28.544Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases {"releases":[{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T12:59:34.150021Z"}]}
+[debug] [2026-10-11T13:11:28.545Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:28.546Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:28.546Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8 [none]
+[debug] [2026-10-11T13:11:29.345Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8 200
+[debug] [2026-10-11T13:11:29.346Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8 [omitted]
+[info] i  firestore: latest version of firestore.rules already up to date, skipping upload... 
+[debug] [2026-10-11T13:11:29.350Z] [rules] releasing cloud.firestore with ruleset projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8
+[debug] [2026-10-11T13:11:29.352Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:29.352Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:11:29.353Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore [none]
+[debug] [2026-10-11T13:11:29.353Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"release":{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8"}}
+[debug] [2026-10-11T13:11:29.958Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore 200
+[debug] [2026-10-11T13:11:29.958Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T13:11:30.029269Z"}
+[debug] [2026-10-11T13:11:29.959Z] [rules] updated release projects/assetxtack-eeca0/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/assetxtack-eeca0/overview
+[debug] [2026-10-11T13:12:50.551Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T13:12:50.565Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules --force
+[debug] [2026-10-11T13:12:50.567Z] CLI Version:   15.28.1
+[debug] [2026-10-11T13:12:50.568Z] Platform:      win32
+[debug] [2026-10-11T13:12:50.568Z] Node Version:  v24.15.0
+[debug] [2026-10-11T13:12:50.569Z] Detected Agent: open_code
+[debug] [2026-10-11T13:12:50.570Z] Time:          Sun Oct 11 2026 14:12:50 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T13:12:50.571Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-11T13:12:58.708Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-11T13:12:58.709Z] > authorizing via signed-in user (assetxtack@gmail.com)
+[debug] [2026-10-11T13:12:58.709Z] [iam] checking project assetxtack-eeca0 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-11T13:12:58.768Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:12:58.769Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:12:58.777Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions [none]
+[debug] [2026-10-11T13:12:58.779Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions  x-goog-user-project=assetxtack-eeca0
+[debug] [2026-10-11T13:12:58.780Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-11T13:13:00.058Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions 200
+[debug] [2026-10-11T13:13:00.059Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'assetxtack-eeca0'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-11T13:13:00.083Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:00.084Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:00.086Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) [none]
+[debug] [2026-10-11T13:13:00.726Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) 200
+[debug] [2026-10-11T13:13:00.727Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) {"name":"projects/assetxtack-eeca0/databases/(default)","uid":"7d783f2b-e225-47a9-95f6-6a8ca6f63aaa","createTime":"2026-08-15T22:17:46.857763Z","updateTime":"2026-08-15T22:17:46.857763Z","locationId":"europe-west1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-11T12:13:00.853506Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IPulhrqFspcDMLqX6rrVo5YD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-11T13:13:00.729Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:00.730Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:00.732Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [none]
+[debug] [2026-10-11T13:13:00.732Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [omitted]
+[debug] [2026-10-11T13:13:01.873Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test 200
+[debug] [2026-10-11T13:13:01.874Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-11T13:13:01.877Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:01.877Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:01.878Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases pageSize=10&pageToken=
+[debug] [2026-10-11T13:13:02.718Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases 200
+[debug] [2026-10-11T13:13:02.719Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases {"releases":[{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T13:11:30.029269Z"}]}
+[debug] [2026-10-11T13:13:02.720Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:02.720Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:02.720Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8 [none]
+[debug] [2026-10-11T13:13:03.065Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8 200
+[debug] [2026-10-11T13:13:03.066Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8 [omitted]
+[info] i  firestore: latest version of firestore.rules already up to date, skipping upload... 
+[debug] [2026-10-11T13:13:03.069Z] [rules] releasing cloud.firestore with ruleset projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8
+[debug] [2026-10-11T13:13:03.070Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:03.070Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:03.071Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore [none]
+[debug] [2026-10-11T13:13:03.071Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"release":{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8"}}
+[debug] [2026-10-11T13:13:04.122Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore 200
+[debug] [2026-10-11T13:13:04.123Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T13:13:04.134676Z"}
+[debug] [2026-10-11T13:13:04.123Z] [rules] updated release projects/assetxtack-eeca0/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/assetxtack-eeca0/overview
+[debug] [2026-10-11T13:13:44.135Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T13:13:44.145Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js firestore:indexes
+[debug] [2026-10-11T13:13:44.146Z] CLI Version:   15.28.1
+[debug] [2026-10-11T13:13:44.146Z] Platform:      win32
+[debug] [2026-10-11T13:13:44.147Z] Node Version:  v24.15.0
+[debug] [2026-10-11T13:13:44.148Z] Detected Agent: open_code
+[debug] [2026-10-11T13:13:44.148Z] Time:          Sun Oct 11 2026 14:13:44 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T13:13:44.149Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-11T13:13:49.406Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-11T13:13:49.408Z] > authorizing via signed-in user (assetxtack@gmail.com)
+[debug] [2026-10-11T13:13:49.408Z] [iam] checking project assetxtack-eeca0 for permissions ["datastore.indexes.list","firebase.projects.get"]
+[debug] [2026-10-11T13:13:49.468Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:49.469Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:49.474Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions [none]
+[debug] [2026-10-11T13:13:49.474Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions  x-goog-user-project=assetxtack-eeca0
+[debug] [2026-10-11T13:13:49.475Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.list","firebase.projects.get"]}
+[debug] [2026-10-11T13:13:50.800Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions 200
+[debug] [2026-10-11T13:13:50.800Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.list","firebase.projects.get"]}
+[debug] [2026-10-11T13:13:50.803Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:50.803Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:50.804Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default)/collectionGroups/-/indexes [none]
+[debug] [2026-10-11T13:13:51.457Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default)/collectionGroups/-/indexes 200
+[debug] [2026-10-11T13:13:51.457Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default)/collectionGroups/-/indexes {"indexes":[{"name":"projects/assetxtack-eeca0/databases/(default)/collectionGroups/orders/indexes/CICAgJjF9oIJ","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"credentialsDeliveredAt","order":"ASCENDING"},{"fieldPath":"__name__","order":"ASCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/assetxtack-eeca0/databases/(default)/collectionGroups/orders/indexes/CICAgJjmiJEJ","queryScope":"COLLECTION","fields":[{"fieldPath":"buyerId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/assetxtack-eeca0/databases/(default)/collectionGroups/walletTransactions/indexes/CICAgJim14AK","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/assetxtack-eeca0/databases/(default)/collectionGroups/notifications/indexes/CICAgOjXh4EK","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/assetxtack-eeca0/databases/(default)/collectionGroups/orders/indexes/CICAgJj7z4EK","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"paymentVerifiedAt","order":"ASCENDING"},{"fieldPath":"__name__","order":"ASCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/assetxtack-eeca0/databases/(default)/collectionGroups/supportTickets/indexes/CICAgJjF9oIK","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/assetxtack-eeca0/databases/(default)/collectionGroups/chats/indexes/CICAgJiUpoMK","queryScope":"COLLECTION","fields":[{"fieldPath":"orderId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"ASCENDING"},{"fieldPath":"__name__","order":"ASCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/assetxtack-eeca0/databases/(default)/collectionGroups/orders/indexes/CICAgJjmiJEL","queryScope":"COLLECTION","fields":[{"fieldPath":"sellerId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"}]}
+[debug] [2026-10-11T13:13:51.459Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:51.459Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:13:51.460Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* [none]
+[debug] [2026-10-11T13:13:51.705Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* 200
+[debug] [2026-10-11T13:13:51.706Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* {"fields":[{"name":"projects/assetxtack-eeca0/databases/(default)/collectionGroups/__default__/fields/*","indexConfig":{"indexes":[{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"ASCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"DESCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","arrayConfig":"CONTAINS"}],"state":"READY"}]}}]}
+[info] {
+  "indexes": [
+    {
+      "collectionGroup": "chats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "orderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "buyerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sellerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "credentialsDeliveredAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentVerifiedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "supportTickets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "walletTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    }
+  ],
+  "fieldOverrides": []
+}
+[debug] [2026-10-11T13:16:09.237Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T13:16:09.251Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules --force
+[debug] [2026-10-11T13:16:09.252Z] CLI Version:   15.28.1
+[debug] [2026-10-11T13:16:09.253Z] Platform:      win32
+[debug] [2026-10-11T13:16:09.253Z] Node Version:  v24.15.0
+[debug] [2026-10-11T13:16:09.254Z] Detected Agent: open_code
+[debug] [2026-10-11T13:16:09.255Z] Time:          Sun Oct 11 2026 14:16:09 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T13:16:09.256Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-11T13:16:17.308Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-11T13:16:17.309Z] > authorizing via signed-in user (assetxtack@gmail.com)
+[debug] [2026-10-11T13:16:17.309Z] [iam] checking project assetxtack-eeca0 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-11T13:16:17.367Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:17.368Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:17.376Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions [none]
+[debug] [2026-10-11T13:16:17.377Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions  x-goog-user-project=assetxtack-eeca0
+[debug] [2026-10-11T13:16:17.377Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-11T13:16:18.664Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions 200
+[debug] [2026-10-11T13:16:18.665Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'assetxtack-eeca0'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-11T13:16:18.681Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:18.682Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:18.682Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) [none]
+[debug] [2026-10-11T13:16:19.347Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) 200
+[debug] [2026-10-11T13:16:19.347Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) {"name":"projects/assetxtack-eeca0/databases/(default)","uid":"7d783f2b-e225-47a9-95f6-6a8ca6f63aaa","createTime":"2026-08-15T22:17:46.857763Z","updateTime":"2026-08-15T22:17:46.857763Z","locationId":"europe-west1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-11T12:16:19.492784Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IMei4piGspcDMLqX6rrVo5YD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-11T13:16:19.350Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:19.352Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:19.352Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [none]
+[debug] [2026-10-11T13:16:19.353Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [omitted]
+[debug] [2026-10-11T13:16:20.482Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test 200
+[debug] [2026-10-11T13:16:20.482Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-11T13:16:20.487Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:20.487Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:20.488Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases pageSize=10&pageToken=
+[debug] [2026-10-11T13:16:21.307Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases 200
+[debug] [2026-10-11T13:16:21.307Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases {"releases":[{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T13:13:04.134676Z"}]}
+[debug] [2026-10-11T13:16:21.309Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:21.309Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:21.310Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8 [none]
+[debug] [2026-10-11T13:16:22.134Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8 200
+[debug] [2026-10-11T13:16:22.135Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/0b178e98-749d-4705-a206-33f6c61182a8 [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-10-11T13:16:22.140Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:22.140Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:22.141Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets [none]
+[debug] [2026-10-11T13:16:22.142Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets [omitted]
+[debug] [2026-10-11T13:16:22.673Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets 200
+[debug] [2026-10-11T13:16:22.673Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets {"name":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28","source":{"files":[{"content":"rules_version = '2';\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function isAuthenticated() {\n      return request.auth != null;\n    }\n\n    function isUserId(expectedId) {\n      return isAuthenticated() && request.auth.uid == expectedId;\n    }\n\n    function isOrderParticipant(orderId) {\n      return isAuthenticated() &&\n        (get(/databases/$(database)/documents/orders/$(orderId)).data.buyerId == request.auth.uid ||\n         get(/databases/$(database)/documents/orders/$(orderId)).data.sellerId == request.auth.uid);\n    }\n\n    function hasNoForbiddenFields(forbiddenFields) {\n      return !request.resource.data.keys().hasAny(forbiddenFields);\n    }\n\n    match /users/{userId} {\n      allow read: if isAuthenticated();\n\n      function hasNoForbiddenFieldsOnUpdate(forbiddenFields) {\n        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(forbiddenFields);\n      }\n\n      allow create: if isUserId(userId)\n        && request.resource.data.role == 'user'\n        && hasNoForbiddenFields([\n          \"walletBalance\",\n          \"escrowBalance\",\n          \"lifetimeSales\",\n          \"kycStatus\",\n          \"sellerVerified\",\n          \"bankAccount\",\n          \"verifiedName\",\n          \"verifiedIdType\",\n          \"verifiedIdNumber\",\n          \"verifiedPhoneNumber\",\n          \"verifiedDob\",\n          \"verificationProvider\",\n          \"verificationReference\"\n        ]);\n\n      allow update: if isUserId(userId)\n        && (resource.data.role == null || request.resource.data.role == resource.data.role)\n        && hasNoForbiddenFieldsOnUpdate([\n          \"walletBalance\",\n          \"escrowBalance\",\n          \"lifetimeSales\",\n          \"kycStatus\",\n          \"sellerVerified\",\n          \"bankAccount\",\n          \"verifiedName\",\n          \"verifiedIdType\",\n          \"verifiedIdNumber\",\n          \"verifiedPhoneNumber\",\n          \"verifiedDob\",\n          \"verificationProvider\",\n          \"verificationReference\"\n        ]);\n\n      allow delete: if false;\n    }\n\n    match /listings/{listingId} {\n      allow read: if true;\n      allow create: if false;\n      allow update, delete: if isAuthenticated()\n        && resource.data.sellerId == request.auth.uid;\n    }\n\n    match /orders/{orderId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow create: if false;\n      allow update: if false;\n      allow delete: if false;\n    }\n\n    match /escrowAudit/{auditId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow write: if false;\n    }\n\n    match /chats/{chatId} {\n      allow read: if isAuthenticated() && (\n        resource.data.senderId == request.auth.uid ||\n        resource.data.buyerId == request.auth.uid ||\n        resource.data.sellerId == request.auth.uid ||\n        isOrderParticipant(resource.data.orderId)\n      );\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /notifications/{notificationId} {\n      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create: if false;\n    }\n\n    match /wallets/{walletId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow write: if false;\n    }\n\n    match /walletTransactions/{txId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create: if false;\n    }\n\n    match /withdrawalRequests/{requestId} {\n      allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /withdrawalAuditLogs/{logId} {\n      allow read: if false;\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /kyc/{kycId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create, update: if false;\n    }\n\n    match /disputes/{disputeId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow create: if false;\n      allow update: if false;\n    }\n\n    match /escrow/{escrowId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow write: if false;\n    }\n\n    match /supportTickets/{ticketId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;\n      allow update: if isAuthenticated()\n        && resource.data.userId == request.auth.uid\n        && request.resource.data.diff(resource.data).affectedKeys()\n            .hasOnly([\"updatedAt\"]);\n      allow delete: if false;\n\n      match /messages/{messageId} {\n        allow read: if isAuthenticated() && (\n          resource.data.senderId == request.auth.uid ||\n          resource.data.ticketUserId == request.auth.uid\n        );\n        allow create: if false;\n        allow update, delete: if false;\n      }\n    }\n\n    match /reviews/{reviewId} {\n      allow read: if true;\n      allow create: if isAuthenticated()\n        && request.resource.data.buyerId == request.auth.uid\n        && request.resource.data.rating >= 1\n        && request.resource.data.rating <= 5;\n      allow update: if isAuthenticated() && resource.data.buyerId == request.auth.uid;\n      allow delete: if isAuthenticated() && resource.data.buyerId == request.auth.uid;\n    }\n\n    match /transfers/{transferId} {\n      allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /reviewStats/{sellerId} {\n      allow read: if true;\n      allow write: if false;\n    }\n\n    match /admin/{docId} {\n      allow read, write: if false;\n    }\n  }\n}","name":"firestore.rules"}]},"createTime":"2026-10-11T13:16:22.714175Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-10-11T13:16:22.674Z] [rules] created ruleset projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28
+[debug] [2026-10-11T13:16:22.676Z] [rules] releasing cloud.firestore with ruleset projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28
+[debug] [2026-10-11T13:16:22.677Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:22.678Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:16:22.679Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore [none]
+[debug] [2026-10-11T13:16:22.679Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"release":{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28"}}
+[debug] [2026-10-11T13:16:23.727Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore 200
+[debug] [2026-10-11T13:16:23.727Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T13:16:23.807932Z"}
+[debug] [2026-10-11T13:16:23.727Z] [rules] updated release projects/assetxtack-eeca0/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/assetxtack-eeca0/overview
+[debug] [2026-10-11T13:43:49.023Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T13:43:49.031Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js login:ci
+[debug] [2026-10-11T13:43:49.037Z] CLI Version:   15.28.1
+[debug] [2026-10-11T13:43:49.038Z] Platform:      win32
+[debug] [2026-10-11T13:43:49.039Z] Node Version:  v24.15.0
+[debug] [2026-10-11T13:43:49.040Z] Detected Agent: open_code
+[debug] [2026-10-11T13:43:49.040Z] Time:          Sun Oct 11 2026 14:43:49 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T13:43:49.041Z] ----------------------------------------------------------------------
+[debug] 
+[error] 
+[error] Error: Cannot run login:ci in non-interactive mode.
+[debug] [2026-10-11T13:44:30.137Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T13:44:30.148Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js functions:shell --project assetxtack-eeca0
+[debug] [2026-10-11T13:44:30.150Z] CLI Version:   15.28.1
+[debug] [2026-10-11T13:44:30.150Z] Platform:      win32
+[debug] [2026-10-11T13:44:30.151Z] Node Version:  v24.15.0
+[debug] [2026-10-11T13:44:30.151Z] Detected Agent: open_code
+[debug] [2026-10-11T13:44:30.152Z] Time:          Sun Oct 11 2026 14:44:30 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T13:44:30.154Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-11T13:44:36.677Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-11T13:44:36.678Z] > authorizing via signed-in user (assetxtack@gmail.com)
+[debug] [2026-10-11T13:44:36.678Z] [iam] checking project assetxtack-eeca0 for permissions ["firebase.projects.get"]
+[debug] [2026-10-11T13:44:36.733Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:44:36.737Z] Checked if tokens are valid: true, expires at: 1791727883935
+[debug] [2026-10-11T13:44:36.741Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions [none]
+[debug] [2026-10-11T13:44:36.742Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions  x-goog-user-project=assetxtack-eeca0
+[debug] [2026-10-11T13:44:36.742Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2026-10-11T13:44:39.471Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions 200
+[debug] [2026-10-11T13:44:39.472Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2026-10-11T13:44:39.544Z] [functions] Functions Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[error] 
+[error] Error: No valid functions configuration detected in firebase.json
+[debug] [2026-10-11T14:32:11.664Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T14:32:11.676Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules --force
+[debug] [2026-10-11T14:32:11.678Z] CLI Version:   15.28.1
+[debug] [2026-10-11T14:32:11.679Z] Platform:      win32
+[debug] [2026-10-11T14:32:11.680Z] Node Version:  v24.15.0
+[debug] [2026-10-11T14:32:11.682Z] Detected Agent: open_code
+[debug] [2026-10-11T14:32:11.682Z] Time:          Sun Oct 11 2026 15:32:11 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T14:32:11.683Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-11T14:32:20.711Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-11T14:32:20.712Z] > authorizing via signed-in user (assetxtack@gmail.com)
+[debug] [2026-10-11T14:32:20.713Z] [iam] checking project assetxtack-eeca0 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-11T14:32:20.787Z] Checked if tokens are valid: false, expires at: 1791727883935
+[debug] [2026-10-11T14:32:20.787Z] Checked if tokens are valid: false, expires at: 1791727883935
+[debug] [2026-10-11T14:32:20.788Z] > refreshing access token with scopes: []
+[debug] [2026-10-11T14:32:20.800Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-10-11T14:32:20.801Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-10-11T14:32:21.536Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-10-11T14:32:21.537Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-10-11T14:32:21.626Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions [none]
+[debug] [2026-10-11T14:32:21.627Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions  x-goog-user-project=assetxtack-eeca0
+[debug] [2026-10-11T14:32:21.627Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-11T14:32:32.174Z] *** [apiv2] error from fetch(https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions, {"headers":{},"method":"POST","body":"{\"permissions\":[\"datastore.indexes.create\",\"datastore.indexes.delete\",\"datastore.indexes.list\",\"datastore.indexes.update\",\"firebase.projects.get\"]}"}): ConnectTimeoutError: Connect Timeout Error (attempted address: cloudresourcemanager.googleapis.com:443, timeout: 10000ms)
+[debug] [2026-10-11T14:32:32.176Z] [iam] error while checking permissions, command may fail: Failed to make request to https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions
+[info] 
+[info] === Deploying to 'assetxtack-eeca0'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-11T14:32:32.197Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:32.198Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:32.198Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) [none]
+[debug] [2026-10-11T14:32:33.158Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) 200
+[debug] [2026-10-11T14:32:33.158Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) {"name":"projects/assetxtack-eeca0/databases/(default)","uid":"7d783f2b-e225-47a9-95f6-6a8ca6f63aaa","createTime":"2026-08-15T22:17:46.857763Z","updateTime":"2026-08-15T22:17:46.857763Z","locationId":"europe-west1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-11T13:32:33.244616Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"INHw2Z2XspcDMLqX6rrVo5YD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-11T14:32:33.162Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:33.163Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:33.164Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [none]
+[debug] [2026-10-11T14:32:33.164Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [omitted]
+[debug] [2026-10-11T14:32:35.306Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test 200
+[debug] [2026-10-11T14:32:35.306Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-11T14:32:35.309Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:35.310Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:35.310Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases pageSize=10&pageToken=
+[debug] [2026-10-11T14:32:35.724Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases 200
+[debug] [2026-10-11T14:32:35.724Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases {"releases":[{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T13:16:23.807932Z"}]}
+[debug] [2026-10-11T14:32:35.726Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:35.726Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:35.727Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28 [none]
+[debug] [2026-10-11T14:32:37.592Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28 200
+[debug] [2026-10-11T14:32:37.592Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28 [omitted]
+[info] i  firestore: latest version of firestore.rules already up to date, skipping upload... 
+[debug] [2026-10-11T14:32:37.598Z] [rules] releasing cloud.firestore with ruleset projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28
+[debug] [2026-10-11T14:32:37.601Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:37.601Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:32:37.602Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore [none]
+[debug] [2026-10-11T14:32:37.603Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"release":{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28"}}
+[debug] [2026-10-11T14:32:40.016Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore 200
+[debug] [2026-10-11T14:32:40.017Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T14:32:38.737156Z"}
+[debug] [2026-10-11T14:32:40.017Z] [rules] updated release projects/assetxtack-eeca0/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/assetxtack-eeca0/overview
+[debug] [2026-10-11T14:33:18.417Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T14:33:18.427Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules --force --json
+[debug] [2026-10-11T14:33:18.429Z] CLI Version:   15.28.1
+[debug] [2026-10-11T14:33:18.429Z] Platform:      win32
+[debug] [2026-10-11T14:33:18.430Z] Node Version:  v24.15.0
+[debug] [2026-10-11T14:33:18.430Z] Detected Agent: open_code
+[debug] [2026-10-11T14:33:18.431Z] Time:          Sun Oct 11 2026 15:33:18 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T14:33:18.432Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-11T14:33:27.900Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-11T14:33:27.902Z] > authorizing via signed-in user (assetxtack@gmail.com)
+[debug] [2026-10-11T14:33:27.902Z] [iam] checking project assetxtack-eeca0 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-11T14:33:27.976Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:27.977Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:27.984Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions [none]
+[debug] [2026-10-11T14:33:27.985Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions  x-goog-user-project=assetxtack-eeca0
+[debug] [2026-10-11T14:33:27.985Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-11T14:33:29.889Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions 200
+[debug] [2026-10-11T14:33:29.890Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'assetxtack-eeca0'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-11T14:33:29.999Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:30.000Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:30.006Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) [none]
+[debug] [2026-10-11T14:33:30.920Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) 200
+[debug] [2026-10-11T14:33:30.921Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) {"name":"projects/assetxtack-eeca0/databases/(default)","uid":"7d783f2b-e225-47a9-95f6-6a8ca6f63aaa","createTime":"2026-08-15T22:17:46.857763Z","updateTime":"2026-08-15T22:17:46.857763Z","locationId":"europe-west1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-11T13:33:30.992974Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IIrPnrmXspcDMLqX6rrVo5YD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-11T14:33:30.925Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:30.926Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:30.927Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [none]
+[debug] [2026-10-11T14:33:30.927Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [omitted]
+[debug] [2026-10-11T14:33:31.842Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test 200
+[debug] [2026-10-11T14:33:31.842Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-11T14:33:31.851Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:31.852Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:31.853Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases pageSize=10&pageToken=
+[debug] [2026-10-11T14:33:32.648Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases 200
+[debug] [2026-10-11T14:33:32.649Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases {"releases":[{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T14:32:38.737156Z"}]}
+[debug] [2026-10-11T14:33:32.651Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:32.651Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:32.652Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28 [none]
+[debug] [2026-10-11T14:33:33.485Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28 200
+[debug] [2026-10-11T14:33:33.486Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28 [omitted]
+[info] i  firestore: latest version of firestore.rules already up to date, skipping upload... 
+[debug] [2026-10-11T14:33:33.495Z] [rules] releasing cloud.firestore with ruleset projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28
+[debug] [2026-10-11T14:33:33.497Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:33.497Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:33:33.498Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore [none]
+[debug] [2026-10-11T14:33:33.498Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"release":{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28"}}
+[debug] [2026-10-11T14:33:34.498Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore 200
+[debug] [2026-10-11T14:33:34.499Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T14:33:34.605440Z"}
+[debug] [2026-10-11T14:33:34.499Z] [rules] updated release projects/assetxtack-eeca0/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/assetxtack-eeca0/overview
+[debug] [2026-10-11T14:34:59.372Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T14:34:59.388Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules --force
+[debug] [2026-10-11T14:34:59.394Z] CLI Version:   15.28.1
+[debug] [2026-10-11T14:34:59.394Z] Platform:      win32
+[debug] [2026-10-11T14:34:59.395Z] Node Version:  v24.15.0
+[debug] [2026-10-11T14:34:59.396Z] Detected Agent: open_code
+[debug] [2026-10-11T14:34:59.397Z] Time:          Sun Oct 11 2026 15:34:59 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T14:34:59.398Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-11T14:35:08.461Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-11T14:35:08.467Z] > authorizing via signed-in user (assetxtack@gmail.com)
+[debug] [2026-10-11T14:35:08.468Z] [iam] checking project assetxtack-eeca0 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-11T14:35:08.556Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:08.556Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:08.561Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions [none]
+[debug] [2026-10-11T14:35:08.562Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions  x-goog-user-project=assetxtack-eeca0
+[debug] [2026-10-11T14:35:08.563Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-11T14:35:09.887Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions 200
+[debug] [2026-10-11T14:35:09.889Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'assetxtack-eeca0'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-11T14:35:09.915Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:09.916Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:09.917Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) [none]
+[debug] [2026-10-11T14:35:10.748Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) 200
+[debug] [2026-10-11T14:35:10.748Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) {"name":"projects/assetxtack-eeca0/databases/(default)","uid":"7d783f2b-e225-47a9-95f6-6a8ca6f63aaa","createTime":"2026-08-15T22:17:46.857763Z","updateTime":"2026-08-15T22:17:46.857763Z","locationId":"europe-west1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-11T13:35:10.866825Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IOq07uiXspcDMLqX6rrVo5YD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-11T14:35:10.752Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:10.752Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:10.752Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [none]
+[debug] [2026-10-11T14:35:10.753Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [omitted]
+[debug] [2026-10-11T14:35:11.848Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test 200
+[debug] [2026-10-11T14:35:11.849Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-11T14:35:11.853Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:11.854Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:11.854Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases pageSize=10&pageToken=
+[debug] [2026-10-11T14:35:12.288Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases 200
+[debug] [2026-10-11T14:35:12.288Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases {"releases":[{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T14:33:34.605440Z"}]}
+[debug] [2026-10-11T14:35:12.290Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:12.290Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:12.290Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28 [none]
+[debug] [2026-10-11T14:35:13.989Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28 200
+[debug] [2026-10-11T14:35:13.990Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/6197f0a3-b024-43b5-a2dc-1ce65a35ed28 [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-10-11T14:35:13.998Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:13.998Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:13.999Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets [none]
+[debug] [2026-10-11T14:35:14.000Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets [omitted]
+[debug] [2026-10-11T14:35:14.652Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets 200
+[debug] [2026-10-11T14:35:14.652Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets {"name":"projects/assetxtack-eeca0/rulesets/79022d70-3cf6-4709-8b42-ea7686841827","source":{"files":[{"content":"rules_version = '2'; // Updated 2026-10-11: hasNoForbiddenFieldsOnUpdate fix\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function isAuthenticated() {\n      return request.auth != null;\n    }\n\n    function isUserId(expectedId) {\n      return isAuthenticated() && request.auth.uid == expectedId;\n    }\n\n    function isOrderParticipant(orderId) {\n      return isAuthenticated() &&\n        (get(/databases/$(database)/documents/orders/$(orderId)).data.buyerId == request.auth.uid ||\n         get(/databases/$(database)/documents/orders/$(orderId)).data.sellerId == request.auth.uid);\n    }\n\n    function hasNoForbiddenFields(forbiddenFields) {\n      return !request.resource.data.keys().hasAny(forbiddenFields);\n    }\n\n    match /users/{userId} {\n      allow read: if isAuthenticated();\n\n      function hasNoForbiddenFieldsOnUpdate(forbiddenFields) {\n        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(forbiddenFields);\n      }\n\n      allow create: if isUserId(userId)\n        && request.resource.data.role == 'user'\n        && hasNoForbiddenFields([\n          \"walletBalance\",\n          \"escrowBalance\",\n          \"lifetimeSales\",\n          \"kycStatus\",\n          \"sellerVerified\",\n          \"bankAccount\",\n          \"verifiedName\",\n          \"verifiedIdType\",\n          \"verifiedIdNumber\",\n          \"verifiedPhoneNumber\",\n          \"verifiedDob\",\n          \"verificationProvider\",\n          \"verificationReference\"\n        ]);\n\n      allow update: if isUserId(userId)\n        && (resource.data.role == null || request.resource.data.role == resource.data.role)\n        && hasNoForbiddenFieldsOnUpdate([\n          \"walletBalance\",\n          \"escrowBalance\",\n          \"lifetimeSales\",\n          \"kycStatus\",\n          \"sellerVerified\",\n          \"bankAccount\",\n          \"verifiedName\",\n          \"verifiedIdType\",\n          \"verifiedIdNumber\",\n          \"verifiedPhoneNumber\",\n          \"verifiedDob\",\n          \"verificationProvider\",\n          \"verificationReference\"\n        ]);\n\n      allow delete: if false;\n    }\n\n    match /listings/{listingId} {\n      allow read: if true;\n      allow create: if false;\n      allow update, delete: if isAuthenticated()\n        && resource.data.sellerId == request.auth.uid;\n    }\n\n    match /orders/{orderId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow create: if false;\n      allow update: if false;\n      allow delete: if false;\n    }\n\n    match /escrowAudit/{auditId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow write: if false;\n    }\n\n    match /chats/{chatId} {\n      allow read: if isAuthenticated() && (\n        resource.data.senderId == request.auth.uid ||\n        resource.data.buyerId == request.auth.uid ||\n        resource.data.sellerId == request.auth.uid ||\n        isOrderParticipant(resource.data.orderId)\n      );\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /notifications/{notificationId} {\n      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create: if false;\n    }\n\n    match /wallets/{walletId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow write: if false;\n    }\n\n    match /walletTransactions/{txId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create: if false;\n    }\n\n    match /withdrawalRequests/{requestId} {\n      allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /withdrawalAuditLogs/{logId} {\n      allow read: if false;\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /kyc/{kycId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create, update: if false;\n    }\n\n    match /disputes/{disputeId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow create: if false;\n      allow update: if false;\n    }\n\n    match /escrow/{escrowId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow write: if false;\n    }\n\n    match /supportTickets/{ticketId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;\n      allow update: if isAuthenticated()\n        && resource.data.userId == request.auth.uid\n        && request.resource.data.diff(resource.data).affectedKeys()\n            .hasOnly([\"updatedAt\"]);\n      allow delete: if false;\n\n      match /messages/{messageId} {\n        allow read: if isAuthenticated() && (\n          resource.data.senderId == request.auth.uid ||\n          resource.data.ticketUserId == request.auth.uid\n        );\n        allow create: if false;\n        allow update, delete: if false;\n      }\n    }\n\n    match /reviews/{reviewId} {\n      allow read: if true;\n      allow create: if isAuthenticated()\n        && request.resource.data.buyerId == request.auth.uid\n        && request.resource.data.rating >= 1\n        && request.resource.data.rating <= 5;\n      allow update: if isAuthenticated() && resource.data.buyerId == request.auth.uid;\n      allow delete: if isAuthenticated() && resource.data.buyerId == request.auth.uid;\n    }\n\n    match /transfers/{transferId} {\n      allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /reviewStats/{sellerId} {\n      allow read: if true;\n      allow write: if false;\n    }\n\n    match /admin/{docId} {\n      allow read, write: if false;\n    }\n  }\n}","name":"firestore.rules"}]},"createTime":"2026-10-11T14:35:14.636143Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-10-11T14:35:14.653Z] [rules] created ruleset projects/assetxtack-eeca0/rulesets/79022d70-3cf6-4709-8b42-ea7686841827
+[debug] [2026-10-11T14:35:14.654Z] [rules] releasing cloud.firestore with ruleset projects/assetxtack-eeca0/rulesets/79022d70-3cf6-4709-8b42-ea7686841827
+[debug] [2026-10-11T14:35:14.655Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:14.656Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:35:14.656Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore [none]
+[debug] [2026-10-11T14:35:14.656Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"release":{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/79022d70-3cf6-4709-8b42-ea7686841827"}}
+[debug] [2026-10-11T14:35:15.734Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore 200
+[debug] [2026-10-11T14:35:15.735Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/79022d70-3cf6-4709-8b42-ea7686841827","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T14:35:15.452439Z"}
+[debug] [2026-10-11T14:35:15.735Z] [rules] updated release projects/assetxtack-eeca0/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/assetxtack-eeca0/overview
+[debug] [2026-10-11T14:37:01.427Z] ----------------------------------------------------------------------
+[debug] [2026-10-11T14:37:01.439Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Iyere God's power\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules --force
+[debug] [2026-10-11T14:37:01.441Z] CLI Version:   15.28.1
+[debug] [2026-10-11T14:37:01.441Z] Platform:      win32
+[debug] [2026-10-11T14:37:01.442Z] Node Version:  v24.15.0
+[debug] [2026-10-11T14:37:01.443Z] Detected Agent: open_code
+[debug] [2026-10-11T14:37:01.444Z] Time:          Sun Oct 11 2026 15:37:01 GMT+0100 (West Africa Time)
+[debug] [2026-10-11T14:37:01.445Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-11T14:37:08.188Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-11T14:37:08.190Z] > authorizing via signed-in user (assetxtack@gmail.com)
+[debug] [2026-10-11T14:37:08.190Z] [iam] checking project assetxtack-eeca0 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-11T14:37:08.274Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:08.275Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:08.283Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions [none]
+[debug] [2026-10-11T14:37:08.283Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions  x-goog-user-project=assetxtack-eeca0
+[debug] [2026-10-11T14:37:08.284Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-11T14:37:09.639Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions 200
+[debug] [2026-10-11T14:37:09.639Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/assetxtack-eeca0:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'assetxtack-eeca0'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-11T14:37:09.657Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:09.658Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:09.659Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default) [none]
+[debug] [2026-10-11T14:37:20.357Z] *** [apiv2] error from fetch(https://firestore.googleapis.com/v1/projects/assetxtack-eeca0/databases/(default), {"headers":{},"method":"GET"}): ConnectTimeoutError: Connect Timeout Error (attempted addresses: 142.250.181.202:443, 2a00:1450:4006:81e::200a:443, timeout: 10000ms)
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-11T14:37:20.360Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:20.360Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:20.361Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [none]
+[debug] [2026-10-11T14:37:20.361Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test [omitted]
+[debug] [2026-10-11T14:37:21.307Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test 200
+[debug] [2026-10-11T14:37:21.307Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-11T14:37:21.310Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:21.310Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:21.311Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases pageSize=10&pageToken=
+[debug] [2026-10-11T14:37:22.138Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases 200
+[debug] [2026-10-11T14:37:22.139Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases {"releases":[{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/79022d70-3cf6-4709-8b42-ea7686841827","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T14:35:15.452439Z"}]}
+[debug] [2026-10-11T14:37:22.141Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:22.141Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:22.142Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/79022d70-3cf6-4709-8b42-ea7686841827 [none]
+[debug] [2026-10-11T14:37:22.470Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/79022d70-3cf6-4709-8b42-ea7686841827 200
+[debug] [2026-10-11T14:37:22.470Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets/79022d70-3cf6-4709-8b42-ea7686841827 [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-10-11T14:37:22.475Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:22.475Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:22.476Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets [none]
+[debug] [2026-10-11T14:37:22.476Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets [omitted]
+[debug] [2026-10-11T14:37:23.153Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets 200
+[debug] [2026-10-11T14:37:23.153Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/rulesets {"name":"projects/assetxtack-eeca0/rulesets/f4dc99d5-c587-4c8d-ada0-0df97c09dc1a","source":{"files":[{"content":"rules_version = '2'; // Updated 2026-10-11: hasNoForbiddenFieldsOnUpdate fix\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function isAuthenticated() {\n      return request.auth != null;\n    }\n\n    function isUserId(expectedId) {\n      return isAuthenticated() && request.auth.uid == expectedId;\n    }\n\n    function isOrderParticipant(orderId) {\n      return isAuthenticated() &&\n        (get(/databases/$(database)/documents/orders/$(orderId)).data.buyerId == request.auth.uid ||\n         get(/databases/$(database)/documents/orders/$(orderId)).data.sellerId == request.auth.uid);\n    }\n\n    function hasNoForbiddenFields(forbiddenFields) {\n      return !request.resource.data.keys().hasAny(forbiddenFields);\n    }\n\n    match /users/{userId} {\n      allow read: if isAuthenticated();\n\n      function hasNoForbiddenFieldsOnUpdate(forbiddenFields) {\n        let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();\n        return !affectedKeys.hasAny(forbiddenFields);\n      }\n\n      allow create: if isUserId(userId)\n        && request.resource.data.role == 'user'\n        && hasNoForbiddenFields([\n          \"walletBalance\",\n          \"escrowBalance\",\n          \"lifetimeSales\",\n          \"kycStatus\",\n          \"sellerVerified\",\n          \"bankAccount\",\n          \"verifiedName\",\n          \"verifiedIdType\",\n          \"verifiedIdNumber\",\n          \"verifiedPhoneNumber\",\n          \"verifiedDob\",\n          \"verificationProvider\",\n          \"verificationReference\"\n        ]);\n\n      allow update: if isUserId(userId)\n        && (resource.data.role == null || request.resource.data.role == resource.data.role)\n        && hasNoForbiddenFieldsOnUpdate([\n          \"walletBalance\",\n          \"escrowBalance\",\n          \"lifetimeSales\",\n          \"kycStatus\",\n          \"sellerVerified\",\n          \"bankAccount\",\n          \"verifiedName\",\n          \"verifiedIdType\",\n          \"verifiedIdNumber\",\n          \"verifiedPhoneNumber\",\n          \"verifiedDob\",\n          \"verificationProvider\",\n          \"verificationReference\"\n        ]);\n\n      allow delete: if false;\n    }\n\n    match /listings/{listingId} {\n      allow read: if true;\n      allow create: if false;\n      allow update, delete: if isAuthenticated()\n        && resource.data.sellerId == request.auth.uid;\n    }\n\n    match /orders/{orderId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow create: if false;\n      allow update: if false;\n      allow delete: if false;\n    }\n\n    match /escrowAudit/{auditId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow write: if false;\n    }\n\n    match /chats/{chatId} {\n      allow read: if isAuthenticated() && (\n        resource.data.senderId == request.auth.uid ||\n        resource.data.buyerId == request.auth.uid ||\n        resource.data.sellerId == request.auth.uid ||\n        isOrderParticipant(resource.data.orderId)\n      );\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /notifications/{notificationId} {\n      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create: if false;\n    }\n\n    match /wallets/{walletId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow write: if false;\n    }\n\n    match /walletTransactions/{txId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create: if false;\n    }\n\n    match /withdrawalRequests/{requestId} {\n      allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /withdrawalAuditLogs/{logId} {\n      allow read: if false;\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /kyc/{kycId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create, update: if false;\n    }\n\n    match /disputes/{disputeId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow create: if false;\n      allow update: if false;\n    }\n\n    match /escrow/{escrowId} {\n      allow read: if isAuthenticated() &&\n        (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);\n      allow write: if false;\n    }\n\n    match /supportTickets/{ticketId} {\n      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;\n      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;\n      allow update: if isAuthenticated()\n        && resource.data.userId == request.auth.uid\n        && request.resource.data.diff(resource.data).affectedKeys()\n            .hasOnly([\"updatedAt\"]);\n      allow delete: if false;\n\n      match /messages/{messageId} {\n        allow read: if isAuthenticated() && (\n          resource.data.senderId == request.auth.uid ||\n          resource.data.ticketUserId == request.auth.uid\n        );\n        allow create: if false;\n        allow update, delete: if false;\n      }\n    }\n\n    match /reviews/{reviewId} {\n      allow read: if true;\n      allow create: if isAuthenticated()\n        && request.resource.data.buyerId == request.auth.uid\n        && request.resource.data.rating >= 1\n        && request.resource.data.rating <= 5;\n      allow update: if isAuthenticated() && resource.data.buyerId == request.auth.uid;\n      allow delete: if isAuthenticated() && resource.data.buyerId == request.auth.uid;\n    }\n\n    match /transfers/{transferId} {\n      allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;\n      allow create: if false;\n      allow update, delete: if false;\n    }\n\n    match /reviewStats/{sellerId} {\n      allow read: if true;\n      allow write: if false;\n    }\n\n    match /admin/{docId} {\n      allow read, write: if false;\n    }\n  }\n}","name":"firestore.rules"}]},"createTime":"2026-10-11T14:37:23.185039Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-10-11T14:37:23.154Z] [rules] created ruleset projects/assetxtack-eeca0/rulesets/f4dc99d5-c587-4c8d-ada0-0df97c09dc1a
+[debug] [2026-10-11T14:37:23.155Z] [rules] releasing cloud.firestore with ruleset projects/assetxtack-eeca0/rulesets/f4dc99d5-c587-4c8d-ada0-0df97c09dc1a
+[debug] [2026-10-11T14:37:23.157Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:23.157Z] Checked if tokens are valid: true, expires at: 1791732740538
+[debug] [2026-10-11T14:37:23.158Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore [none]
+[debug] [2026-10-11T14:37:23.158Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"release":{"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/f4dc99d5-c587-4c8d-ada0-0df97c09dc1a"}}
+[debug] [2026-10-11T14:37:23.709Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore 200
+[debug] [2026-10-11T14:37:23.709Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/assetxtack-eeca0/releases/cloud.firestore {"name":"projects/assetxtack-eeca0/releases/cloud.firestore","rulesetName":"projects/assetxtack-eeca0/rulesets/f4dc99d5-c587-4c8d-ada0-0df97c09dc1a","createTime":"2026-08-15T22:45:55.356789Z","updateTime":"2026-10-11T14:37:23.777969Z"}
+[debug] [2026-10-11T14:37:23.710Z] [rules] updated release projects/assetxtack-eeca0/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/assetxtack-eeca0/overview
