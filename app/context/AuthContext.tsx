@@ -11,7 +11,7 @@ import {
   signOut as firebaseSignOut,
   User,
 } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { syncUserToFirestore } from "@/lib/authSync";
 
@@ -82,6 +82,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           (docSnap) => {
             if (currentEventId !== authEventId) return;
             const profileData = docSnap.exists() ? docSnap.data() : {};
+
+            if (docSnap.metadata.fromCache) {
+              void getDoc(userDocRef).then((serverSnap) => {
+                if (currentEventId !== authEventId) return;
+                const serverData = serverSnap.exists() ? serverSnap.data() : {};
+                if (serverData.status === "banned") {
+                  const bannedUid = authUser.uid;
+                  void firebaseSignOut(auth).finally(() => {
+                    window.location.replace(`/suspended?uid=${encodeURIComponent(bannedUid)}`);
+                  });
+                  return;
+                }
+                setUser({
+                  ...authUser,
+                  photoURL: (authUser as any).photoURL || "",
+                  isVerified: Boolean(serverData.sellerVerified || serverData.isVerified),
+                  kycStatus: serverData.kycStatus || "none",
+                  username: serverData.username || authUser.displayName || "",
+                } as AppUser);
+                setLoading(false);
+              });
+              return;
+            }
 
             if (profileData.status === "banned") {
               const bannedUid = authUser.uid;

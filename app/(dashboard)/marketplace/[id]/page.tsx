@@ -425,7 +425,18 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
             body: JSON.stringify({ reference: response.reference, listingId }),
           });
 
-          const verificationData = await verificationResponse.json();
+          let verificationData: Record<string, unknown>;
+          try {
+            verificationData = await verificationResponse.json();
+          } catch (parseErr) {
+            const rawBody = await verificationResponse.text();
+            console.error("[Payment] Failed to parse verification response JSON:", parseErr, {
+              status: verificationResponse.status,
+              statusText: verificationResponse.statusText,
+              rawBody: rawBody.slice(0, 500),
+            });
+            throw new Error(`Invalid response from payment verification (${verificationResponse.status}): ${rawBody.slice(0, 200)}`);
+          }
 
           if (verificationData.success) {
             setVerifiedPayments((prev) => new Set(prev).add(response.reference));
@@ -459,17 +470,28 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
                 }),
               });
 
-              const createData = await createResponse.json();
+              let createData: Record<string, unknown>;
+              try {
+                createData = await createResponse.json();
+              } catch (parseErr) {
+                const rawBody = await createResponse.text();
+                console.error("[Payment] Failed to parse order creation response JSON:", parseErr, {
+                  status: createResponse.status,
+                  statusText: createResponse.statusText,
+                  rawBody: rawBody.slice(0, 500),
+                });
+                throw new Error(`Invalid response from order creation (${createResponse.status}): ${rawBody.slice(0, 200)}`);
+              }
 
               if (!createResponse.ok || !createData.success) {
-                const errorMsg = createData.error || createData.details || "Failed to create order";
+                const errorMsg = (createData.error as string) || (createData.details as string) || "Failed to create order";
                 console.error("Order creation failed. API error:", createData.error, "Full response:", createData);
                 throw new Error(errorMsg);
               }
 
               setShowPaymentModal(false);
               setPaymentSuccess(true);
-              setSuccessOrderId(createData.orderId);
+              setSuccessOrderId(createData.orderId ? String(createData.orderId) : null);
               setPurchasedListingIds((prev) => new Set(prev).add(listing.id));
             } catch (dbError) {
               const errorMessage = dbError instanceof Error ? dbError.message : "Unknown error";
@@ -481,7 +503,7 @@ export default function ListingDetailsPage({ params }: { params: Promise<{ id: s
               setCurrentPaymentReference(null);
             }
           } else if (verificationData.error) {
-            setPurchaseError(verificationData.error);
+            setPurchaseError(String(verificationData.error));
             setPaymentProcessing(false);
             setPaymentModalLocked(false);
             setCurrentPaymentReference(null);
