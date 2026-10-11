@@ -13,6 +13,7 @@ import {
   getRedirectResult,
   getAdditionalUserInfo,
   User,
+  sendEmailVerification,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -23,7 +24,7 @@ const GOOGLE_SIGNUP_REDIRECT_KEY = "assetxtack_google_signup_redirect";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, requiresEmailVerification } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -33,6 +34,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const registrationFlowRef = useRef(false);
   const [checkingGoogleRedirect, setCheckingGoogleRedirect] = useState(true);
   const [isIOS, setIsIOS] = useState(false);
@@ -47,6 +49,36 @@ export default function RegisterPage() {
   }, []);
 
   const finishGoogleSignUp = async (googleUser: User, isNewGoogleUser: boolean) => {
+    if (isNewGoogleUser) {
+      const now = new Date().toISOString();
+      const userRef = doc(db, "users", googleUser.uid);
+      await setDoc(userRef, {
+        uid: googleUser.uid,
+        email: googleUser.email || "",
+        displayName: googleUser.displayName || "New User",
+        photoURL: googleUser.photoURL || "",
+        phoneNumber: googleUser.phoneNumber || "",
+        role: "user",
+        status: "active",
+        emailVerified: false,
+        isVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      }, { merge: true });
+
+      try {
+        await sendEmailVerification(googleUser);
+      } catch (verificationErr) {
+        console.error("[Register] Failed to send verification email:", verificationErr);
+      }
+
+      setSuccess("Account created! Please verify your email before signing in.");
+      setTimeout(() => {
+        router.replace("/sign-in");
+      }, 2000);
+      return true;
+    }
+
     await syncUserToFirestore(googleUser);
     const userRef = doc(db, "users", googleUser.uid);
     const userSnap = await getDoc(userRef);
@@ -63,7 +95,9 @@ export default function RegisterPage() {
       displayName: googleUser.displayName || "New User",
       photoURL: googleUser.photoURL || "",
       phoneNumber: googleUser.phoneNumber || "",
+      role: "user",
       status: "active",
+      emailVerified: googleUser.emailVerified ?? false,
       createdAt: new Date().toISOString(),
     }, { merge: true });
 
@@ -118,11 +152,11 @@ export default function RegisterPage() {
     if (!authLoading && !checkingGoogleRedirect && user && !registrationFlowRef.current) {
       void Promise.resolve().then(() => {
         setTimeout(() => {
-          router.replace("/dashboard");
+          router.replace(requiresEmailVerification ? "/verify-email" : "/dashboard");
         }, 1500);
       });
     }
-  }, [user, authLoading, checkingGoogleRedirect, router]);
+  }, [user, authLoading, checkingGoogleRedirect, router, requiresEmailVerification]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,6 +228,7 @@ export default function RegisterPage() {
           role: "user",
           status: "active",
           isVerified: false,
+          emailVerified: false,
           createdAt: now,
         }, { merge: true });
       } catch (setDocErr) {
@@ -202,11 +237,18 @@ export default function RegisterPage() {
         return;
       }
 
+      try {
+        await sendEmailVerification(userCredential.user);
+      } catch (verificationErr) {
+        console.error("[Register] Failed to send verification email:", verificationErr);
+      }
+
       setLoading(false);
+      setSuccess("Account created! Please verify your email before signing in.");
       void Promise.resolve().then(() => {
         setTimeout(() => {
-          router.replace("/dashboard");
-        }, 1500);
+          router.replace("/sign-in");
+        }, 2000);
       });
     } catch (err) {
       const error = err as { code?: string; message?: string };
@@ -306,6 +348,11 @@ export default function RegisterPage() {
           {error && (
             <div className="mb-4 rounded-lg bg-red-500/10 p-3 text-xs text-red-400 border border-red-500/20 text-center font-medium">
               {error}
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-400 border border-emerald-500/20 text-center font-medium">
+              {success}
             </div>
           )}
 

@@ -10,6 +10,7 @@ export interface UserProfile {
   role: "user";
   status: "active";
   isVerified: boolean;
+  emailVerified?: boolean;
   createdAt: string;
 }
 
@@ -34,8 +35,28 @@ export async function syncUserToFirestore(firebaseUser: User): Promise<UserProfi
   };
 
   if (snapshot.exists()) {
-    await setDoc(userRef, profile, { merge: true });
-    return { ...(snapshot.data() as UserProfile), ...profile };
+    const existingData = snapshot.data() as UserProfile;
+    const updates: Record<string, unknown> = {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email || "",
+      displayName: firebaseUser.displayName || existingData.displayName || "New User",
+      photoURL: firebaseUser.photoURL || existingData.photoURL || "",
+      status: "active",
+      isVerified: existingData.isVerified ?? false,
+      // NEVER change emailVerified via sync for existing users.
+      // It's only set:
+      // 1. On new document creation (not written here - register pages handle it)
+      // 2. On the verify-email page after applyActionCode succeeds
+      // This prevents premature setting of emailVerified: true on sign-in.
+      createdAt: existingData.createdAt || now,
+    };
+
+    if (!existingData.role) {
+      (updates as Record<string, unknown>).role = "user";
+    }
+
+    await setDoc(userRef, updates, { merge: true });
+    return { ...existingData, ...updates } as UserProfile;
   }
 
   await setDoc(userRef, profile, { merge: true });

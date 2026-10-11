@@ -11,11 +11,17 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, requiresEmailVerification } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) router.replace("/sign-in");
   }, [loading, user, router]);
+
+  useEffect(() => {
+    if (!loading && user && requiresEmailVerification) {
+      router.replace("/verify-email");
+    }
+  }, [loading, user, requiresEmailVerification, router]);
 
   if (loading) {
     return (
@@ -29,5 +35,9 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  return user ? <>{children}</> : null;
+  if (!user || requiresEmailVerification) {
+    return null;
+  }
+
+  return <>{children}</>;
 }

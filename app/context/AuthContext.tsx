@@ -30,6 +30,7 @@ type AuthContextType = {
   sendEmailLink: (email: string) => Promise<void>;
   completeEmailLinkSignIn: () => Promise<boolean>;
   signOut: () => Promise<void>;
+  requiresEmailVerification: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +40,7 @@ const EMAIL_STORAGE_KEY = "assetxtack_email_for_signin";
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [requiresEmailVerification, setRequiresEmailVerification] = useState(false);
 
   useEffect(() => {
     let unsubscribeFirestore: (() => void) | null = null;
@@ -61,17 +63,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-          await syncUserToFirestore(authUser);
+          console.log("[AuthContext] onAuthStateChanged - syncing user to Firestore:", authUser.uid);
+          const syncedProfile = await syncUserToFirestore(authUser).catch((syncErr) => {
+            console.error("[AuthContext] Failed to sync authenticated user profile:", syncErr);
+            return null;
+          });
+          console.log("[AuthContext] Sync result:", {
+            uid: authUser.uid,
+            firebaseEmailVerified: authUser.emailVerified,
+            syncedEmailVerified: syncedProfile?.emailVerified,
+          });
         } catch (error) {
-          console.error("Failed to sync authenticated user profile:", error);
-          if (currentEventId === authEventId) {
-            setUser(null);
-            setLoading(false);
-            if (auth.currentUser?.uid === authUser.uid) {
-              void firebaseSignOut(auth);
-            }
-          }
-          return;
+          console.error("[AuthContext] Failed to sync authenticated user profile:", error);
         }
 
         const userDocRef = doc(db, "users", authUser.uid);
@@ -97,11 +100,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser({
                   ...authUser,
                   photoURL: (authUser as any).photoURL || "",
+                  emailVerified: Boolean(serverData.emailVerified),
                   isVerified: Boolean(serverData.sellerVerified || serverData.isVerified),
                   kycStatus: serverData.kycStatus || "none",
                   username: serverData.username || authUser.displayName || "",
                 } as AppUser);
                 setLoading(false);
+                const needsVerification = !serverData.emailVerified;
+                setRequiresEmailVerification(needsVerification);
               });
               return;
             }
@@ -117,12 +123,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser({
       ...authUser,
       photoURL: (authUser as any).photoURL || "",
+      emailVerified: Boolean(profileData.emailVerified),
       isVerified: Boolean(profileData.sellerVerified || profileData.isVerified),
               kycStatus: profileData.kycStatus || "none",
               username: profileData.username || authUser.displayName || "",
             } as AppUser);
 
             setLoading(false);
+                const needsVerification = !profileData.emailVerified;
+                setRequiresEmailVerification(needsVerification);
           },
           (error) => {
             if (currentEventId !== authEventId) return;
@@ -182,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signInWithGoogle, sendEmailLink, completeEmailLinkSignIn, signOut }}
+      value={{ user, loading, signInWithGoogle, sendEmailLink, completeEmailLinkSignIn, signOut, requiresEmailVerification }}
     >
       {children}
     </AuthContext.Provider>
