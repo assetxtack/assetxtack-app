@@ -35,13 +35,13 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-[#242938] bg-[#0B0E14]">
-      <div className="max-w-6xl mx-auto px-5 py-14 grid grid-cols-2 md:grid-cols-4 gap-10">
-        <div className="col-span-2 md:col-span-1">
+      <div className="max-w-6xl mx-auto px-5 py-14 grid grid-cols-1 md:grid-cols-4 text-center md:text-start gap-10">
+        <div className="md:col-span-1">
           {/* CHANGED: shared Wordmark component */}
           <div className="mb-3">
             <Wordmark size={20} />
           </div>
-          <p className="text-xs text-[#8A93A3] leading-relaxed max-w-[220px]">
+          <p className="text-xs text-[#8A93A3] md:mx-0 mx-auto leading-relaxed max-w-[220px]">
             A safe marketplace to buy and sell publisher accounts in Nigeria.
           </p>
         </div>
