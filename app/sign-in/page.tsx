@@ -98,6 +98,18 @@ export default function SignInPage() {
             return;
           }
 
+          const userData = userSnap.data() as { emailVerified?: boolean };
+          if (!userData.emailVerified) {
+            try {
+              await sendEmailVerification(googleUser, { url: `${window.location.origin}/verify-email`, handleCodeInApp: true });
+            } catch (verificationErr) {
+              console.error("[SignIn] Failed to send verification email:", verificationErr);
+            }
+            setSuccess("Please verify your email to continue.");
+            router.replace("/verify-email");
+            return;
+          }
+
           setSuccess("Login successful! Redirecting...");
           router.replace("/dashboard");
         }
@@ -178,7 +190,7 @@ export default function SignInPage() {
 
       if (!userData.emailVerified) {
         try {
-          await sendEmailVerification(userCredential.user);
+          await sendEmailVerification(userCredential.user, { url: `${window.location.origin}/verify-email`, handleCodeInApp: true });
         } catch (verificationErr) {
           console.error("[SignIn] Failed to send verification email:", verificationErr);
         }
@@ -277,6 +289,18 @@ export default function SignInPage() {
           setError("No account found with this Google account. Please sign up first.");
           await auth.signOut();
           googleFlowRef.current = false;
+          return;
+        }
+
+        const userData = userSnap.data() as { emailVerified?: boolean };
+        if (!userData.emailVerified) {
+          try {
+            await sendEmailVerification(googleUser, { url: `${window.location.origin}/verify-email`, handleCodeInApp: true });
+          } catch (verificationErr) {
+            console.error("[SignIn] Failed to send verification email:", verificationErr);
+          }
+          setSuccess("Please verify your email to continue.");
+          router.replace("/verify-email");
           return;
         }
       }
