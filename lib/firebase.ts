@@ -8,12 +8,6 @@ import {
 import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Diagnostic check to see if Linux is reading .env.local correctly
-console.log("CONFIG DEBUG:", {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "Loaded (Length: " + process.env.NEXT_PUBLIC_FIREBASE_API_KEY.length + ")" : "UNDEFINED",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-});
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

@@ -26,6 +26,8 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     if (!user) return;
 
+    // Only redirect based on Firestore emailVerified, not Firebase Auth's emailVerified
+    // (Google users have emailVerified=true in Firebase Auth but false in Firestore until they click the link)
     if (user.emailVerified) {
       router.replace("/dashboard");
       return;
@@ -38,8 +40,30 @@ export default function VerifyEmailPage() {
     intervalRef.current = setInterval(async () => {
       if (db && auth?.currentUser) {
         const userRef = doc(db, "users", auth.currentUser.uid);
+
+        try {
+          await auth.currentUser.reload();
+        } catch (reloadErr) {
+          console.error("[verify-email] Polling reload failed:", reloadErr);
+        }
+
         const snap = await getDoc(userRef);
-        if (snap.exists() && snap.data()?.emailVerified === true) {
+        const firestoreVerified = snap.exists() ? snap.data()?.emailVerified === true : false;
+
+        if (auth.currentUser.emailVerified && !firestoreVerified) {
+          // Firebase Auth says verified (e.g., Google user), but Firestore doesn't.
+          // This happens when the user clicks a verification link and applyActionCode updated
+          // Auth but Firestore write in handleOobRedirect failed. Sync Firestore here.
+          try {
+            await updateDoc(userRef, { emailVerified: true });
+            console.log("[verify-email] Polling: wrote emailVerified: true to Firestore for uid:", auth.currentUser.uid);
+          } catch (writeErr) {
+            console.error("[verify-email] Polling: failed to write emailVerified:", writeErr);
+          }
+        }
+
+        // Only redirect if Firestore has emailVerified: true
+        if (firestoreVerified) {
           clearInterval(intervalRef.current!);
           router.replace("/dashboard");
         }
@@ -83,39 +107,75 @@ export default function VerifyEmailPage() {
   };
 
   const handleOobRedirect = async () => {
-    if (typeof window !== "undefined") {
-      const mode = new URLSearchParams(window.location.search).get("mode");
-      if (mode === "verifyEmail") {
-        const oobCode = new URLSearchParams(window.location.search).get("oobCode");
-        const apiKey = new URLSearchParams(window.location.search).get("apiKey");
-        if (oobCode && apiKey && auth) {
+    if (typeof window === "undefined") return;
+
+    const mode = new URLSearchParams(window.location.search).get("mode");
+    if (mode !== "verifyEmail") return;
+
+    const oobCode = new URLSearchParams(window.location.search).get("oobCode");
+    const apiKey = new URLSearchParams(window.location.search).get("apiKey");
+    if (!oobCode || !apiKey || !auth) return;
+
+    let currentUser = auth.currentUser;
+    if (!currentUser) {
+      currentUser = await new Promise<User | null>((resolve) => {
+        const unsub = onAuthStateChanged(auth, (u) => {
+          unsub();
+          resolve(u);
+        });
+      });
+    }
+    if (!currentUser) {
+      setError("Unable to confirm your session. Please sign in again.");
+      return;
+    }
+
+    const userDocRef = db ? doc(db, "users", currentUser.uid) : null;
+
+    // Apply the verification action code
+    try {
+      await applyActionCode(auth, oobCode);
+    } catch (err) {
+      const error = err as { code?: string; message?: string };
+      if (error.code === "auth/invalid-action-code" || error.code === "auth/expired-action-code") {
+        setError("This verification link has expired or is invalid. Please request a new verification email.");
+      } else {
+        setError(error.message || "Verification failed. Please try again.");
+      }
+      return;
+    }
+
+    // Reload to sync the auth state after applyActionCode
+    try {
+      await currentUser.reload();
+    } catch (reloadErr) {
+      console.error("[verify-email] Failed to reload auth user after applyActionCode:", reloadErr);
+    }
+
+    // Write emailVerified: true to Firestore after applyActionCode succeeds
+    if (userDocRef) {
+      try {
+        await updateDoc(userDocRef, { emailVerified: true });
+        console.log("[verify-email] Successfully wrote emailVerified: true to Firestore for uid:", currentUser.uid);
+      } catch (firestoreErr) {
+        console.error("[verify-email] Failed to write emailVerified to Firestore:", firestoreErr);
+        // Retry once after a short delay
+        setTimeout(async () => {
           try {
-            let currentUser = auth.currentUser;
-            if (!currentUser) {
-              currentUser = await new Promise<User | null>((resolve) => {
-                const unsub = onAuthStateChanged(auth, (u) => {
-                  unsub();
-                  resolve(u);
-                });
-              });
-            }
-            if (!currentUser) {
-              setError("Unable to confirm your session. Please sign in again.");
-              return;
-            }
-            await applyActionCode(auth, oobCode);
-            if (db) {
-              const userRef = doc(db, "users", currentUser.uid);
-              await updateDoc(userRef, { emailVerified: true });
-            }
-            router.replace("/dashboard");
-          } catch (err) {
-            const error = err as { message?: string };
-            setError(error.message || "Verification failed. The link may have expired.");
+            await updateDoc(userDocRef, { emailVerified: true });
+            console.log("[verify-email] Retry: Successfully wrote emailVerified: true to Firestore");
+          } catch (retryErr) {
+            console.error("[verify-email] Retry failed:", retryErr);
+            setError("Verification succeeded but we couldn't update your profile. Please contact support.");
+            return;
           }
-        }
+          router.replace("/dashboard");
+        }, 1000);
+        return;
       }
     }
+
+    router.replace("/dashboard");
   };
 
   useEffect(() => {
