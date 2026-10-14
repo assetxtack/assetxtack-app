@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
-import { sendEmailVerification, applyActionCode } from "firebase/auth";
+import { sendEmailVerification, applyActionCode, onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 
@@ -90,10 +90,22 @@ export default function VerifyEmailPage() {
         const apiKey = new URLSearchParams(window.location.search).get("apiKey");
         if (oobCode && apiKey && auth) {
           try {
+            let currentUser = auth.currentUser;
+            if (!currentUser) {
+              currentUser = await new Promise<User | null>((resolve) => {
+                const unsub = onAuthStateChanged(auth, (u) => {
+                  unsub();
+                  resolve(u);
+                });
+              });
+            }
+            if (!currentUser) {
+              setError("Unable to confirm your session. Please sign in again.");
+              return;
+            }
             await applyActionCode(auth, oobCode);
-            // Explicitly mark email as verified in Firestore
-            if (auth.currentUser && db) {
-              const userRef = doc(db, "users", auth.currentUser.uid);
+            if (db) {
+              const userRef = doc(db, "users", currentUser.uid);
               await updateDoc(userRef, { emailVerified: true });
             }
             router.replace("/dashboard");
