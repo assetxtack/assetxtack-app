@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
 import { sendEmailVerification, applyActionCode } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -36,15 +36,11 @@ export default function VerifyEmailPage() {
     }
 
     intervalRef.current = setInterval(async () => {
-      if (auth) {
-        await auth.currentUser?.reload();
-        if (auth.currentUser?.emailVerified) {
+      if (db && auth?.currentUser) {
+        const userRef = doc(db, "users", auth.currentUser.uid);
+        const snap = await getDoc(userRef);
+        if (snap.exists() && snap.data()?.emailVerified === true) {
           clearInterval(intervalRef.current!);
-          // Explicitly mark email as verified in Firestore
-          if (db) {
-            const userRef = doc(db, "users", auth.currentUser!.uid);
-            await updateDoc(userRef, { emailVerified: true });
-          }
           router.replace("/dashboard");
         }
       }
@@ -65,7 +61,7 @@ export default function VerifyEmailPage() {
     setLoading(true);
 
     try {
-      await sendEmailVerification(auth.currentUser);
+      await sendEmailVerification(auth.currentUser, { url: `${window.location.origin}/verify-email`, handleCodeInApp: true });
       setSuccess("Verification email sent! Check your inbox (and spam folder).");
       setCooldown(60);
 

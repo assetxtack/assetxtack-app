@@ -67,15 +67,12 @@ export default function RegisterPage() {
       }, { merge: true });
 
       try {
-        await sendEmailVerification(googleUser);
+        await sendEmailVerification(googleUser, { url: `${window.location.origin}/verify-email`, handleCodeInApp: true });
       } catch (verificationErr) {
         console.error("[Register] Failed to send verification email:", verificationErr);
       }
 
-      setSuccess("Account created! Please verify your email before signing in.");
-      setTimeout(() => {
-        router.replace("/sign-in");
-      }, 2000);
+      router.replace("/verify-email");
       return true;
     }
 
@@ -238,7 +235,7 @@ export default function RegisterPage() {
       }
 
       try {
-        await sendEmailVerification(userCredential.user);
+        await sendEmailVerification(userCredential.user, { url: `${window.location.origin}/verify-email`, handleCodeInApp: true });
       } catch (verificationErr) {
         console.error("[Register] Failed to send verification email:", verificationErr);
       }
