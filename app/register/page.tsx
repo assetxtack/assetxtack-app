@@ -80,23 +80,22 @@ export default function RegisterPage() {
     const userRef = doc(db, "users", googleUser.uid);
     const userSnap = await getDoc(userRef);
 
-    if (userSnap.exists() && !isNewGoogleUser) {
+    if (!userSnap.exists()) {
       await auth.signOut();
       setError("An account with this Google account already exists. Please sign in instead.");
       return false;
     }
 
-    await setDoc(userRef, {
-      uid: googleUser.uid,
-      email: googleUser.email || "",
-      displayName: googleUser.displayName || "New User",
-      photoURL: googleUser.photoURL || "",
-      phoneNumber: googleUser.phoneNumber || "",
-      role: "user",
-      status: "active",
-      emailVerified: googleUser.emailVerified ?? false,
-      createdAt: new Date().toISOString(),
-    }, { merge: true });
+    const userData = userSnap.data() as { emailVerified?: boolean };
+    if (!userData.emailVerified) {
+      try {
+        await sendEmailVerification(googleUser, { url: `${window.location.origin}/verify-email`, handleCodeInApp: true });
+      } catch (verificationErr) {
+        console.error("[Register] Failed to send verification email:", verificationErr);
+      }
+      router.replace("/verify-email");
+      return false;
+    }
 
     router.replace("/dashboard");
     return true;
