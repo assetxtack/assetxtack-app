@@ -67,7 +67,7 @@ export default function Footer() {
       <div className="border-t border-[#242938]">
         <div className="max-w-6xl mx-auto px-5 py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span className="text-xs text-[#8A93A3]">© {year} AssetXtack. All rights reserved.</span>
-          <span className="text-xs text-[#8A93A3]">A Geypey Web Studio product</span>
+          <span className="text-xs text-[#8A93A3]"><a className="text-[#FFB020]" href="https://geypeywebstudio.com.ng" target="_blank" rel="noopener noreferrer">A Geypey Web Studio product</a></span>
         </div>
       </div>
     </footer>
