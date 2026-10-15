@@ -36,7 +36,7 @@ export default function Footer() {
   return (
     <footer className="border-t border-[#242938] bg-[#0B0E14]">
       <div className="max-w-6xl mx-auto px-5 py-14 grid grid-cols-2 md:grid-cols-4 gap-10">
-        <div className="col-span-2 md:col-span-1">
+        <div className=" md:col-span-1">
           {/* CHANGED: shared Wordmark component */}
           <div className="mb-3">
             <Wordmark size={20} />
